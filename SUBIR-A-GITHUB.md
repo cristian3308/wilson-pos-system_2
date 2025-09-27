@@ -204,6 +204,6 @@ git push origin main
 
 **Tu Wilson POS System estará disponible para todo el mundo** 🌎
 
-**URL será**: `https://github.com/TU_USUARIO/wilson-pos-system`
+**URL será**: `https://github.com/cristian3308/wilson-pos-system`
 
 </div>

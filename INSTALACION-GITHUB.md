@@ -4,7 +4,7 @@
 
 ### ✅ **Paso 1: Descargar el Proyecto**
 ```bash
-1. Ir a: https://github.com/TU_USUARIO/wilson-pos-system
+1. Ir a: https://github.com/cristian3308/wilson-pos-system
 2. Clic en botón verde "Code" 
 3. Seleccionar "Download ZIP"
 4. Extraer wilson-pos-system-main.zip en tu escritorio
@@ -64,7 +64,7 @@ npm run package:win
 
 Si tienes Node.js instalado:
 ```bash
-git clone https://github.com/TU_USUARIO/wilson-pos-system.git
+git clone https://github.com/cristian3308/wilson-pos-system.git
 cd wilson-pos-system
 .\EMPAQUETADO-COMPLETO.bat
 ```
@@ -171,7 +171,7 @@ O usar Método 1 (sin git)
 ### 🆘 **Contacto de Soporte:**
 - 📧 **Email**: soporte@wilsonpos.com
 - 📱 **WhatsApp**: +57 300 123 4567
-- 💬 **GitHub Issues**: [Reportar problema](https://github.com/TU_USUARIO/wilson-pos-system/issues)
+- 💬 **GitHub Issues**: [Reportar problema](https://github.com/cristian3308/wilson-pos-system/issues)
 
 ### 📚 **Documentación Adicional:**
 - 📖 [Manual de Usuario](MANUAL-USO-RAPIDO.md)

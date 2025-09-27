@@ -118,7 +118,7 @@ pos-web-professional/
 
 # Clonar el repositorio- Cola de servicios inteligente
 
-git clone https://github.com/TU_USUARIO/wilson-pos-system.git- Asignación automática de trabajadores
+git clone https://github.com/cristian3308/wilson-pos-system.git- Asignación automática de trabajadores
 
 cd wilson-pos-system- Galería antes/después
 
