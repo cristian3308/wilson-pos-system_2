@@ -41,19 +41,20 @@ export const printThermalTicket = (data: PrintData) => {
         
         body {
             font-family: 'Courier New', monospace;
-            width: 280px;
+            width: 384px;
             margin: 0 auto;
             background: white;
-            padding: 10px;
-            font-size: 12px;
-            line-height: 1.3;
+            padding: 8px;
+            font-size: 10px;
+            line-height: 1.2;
         }
         
         .thermal-ticket {
             background: white;
             color: black;
             border: 1px solid #000;
-            padding: 8px;
+            padding: 6px;
+            max-width: 384px;
         }
         
         .header {
@@ -67,40 +68,40 @@ export const printThermalTicket = (data: PrintData) => {
         }
         
         .company-name {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             margin-bottom: 2px;
             color: #2c3e50;
         }
         
         .company-subtitle {
-            font-size: 10px;
+            font-size: 9px;
             margin-bottom: 2px;
             color: #34495e;
         }
         
         .nit {
-            font-size: 9px;
+            font-size: 8px;
             color: #5d6d7e;
         }
         
         .ticket-type {
             text-align: center;
             font-weight: bold;
-            font-size: 14px;
-            margin: 8px 0;
+            font-size: 12px;
+            margin: 6px 0;
             border: 2px solid #3498db;
-            padding: 6px;
+            padding: 4px;
             background: #e3f2fd;
             color: #1976d2;
-            border-radius: 4px;
+            border-radius: 3px;
         }
         
         .info-line {
             display: flex;
             justify-content: space-between;
-            margin: 3px 0;
-            font-size: 11px;
+            margin: 2px 0;
+            font-size: 9px;
         }
         
         .label {
@@ -113,38 +114,38 @@ export const printThermalTicket = (data: PrintData) => {
         
         .separator {
             border-top: 1px dashed #000;
-            margin: 8px 0;
+            margin: 6px 0;
         }
         
         .barcode-section {
             text-align: center;
-            margin: 8px 0;
+            margin: 6px 0;
             border: 2px solid #3498db;
-            padding: 8px;
+            padding: 6px;
             background: #f0f8ff;
-            border-radius: 6px;
+            border-radius: 4px;
         }
         
         .barcode-title {
-            font-size: 9px;
+            font-size: 8px;
             font-weight: bold;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             color: #2c3e50;
         }
         
         .barcode-code {
             font-family: 'Courier New', monospace;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
-            margin: 4px 0;
+            margin: 3px 0;
             letter-spacing: 1px;
             color: #1976d2;
         }
         
         .barcode-visual {
             font-family: 'Courier New', monospace;
-            font-size: 12px;
-            margin: 4px 0;
+            font-size: 10px;
+            margin: 3px 0;
             letter-spacing: 0px;
             line-height: 1;
             font-weight: bold;
@@ -154,31 +155,31 @@ export const printThermalTicket = (data: PrintData) => {
         .total-section {
             text-align: center;
             border: 2px solid #27ae60;
-            padding: 8px;
-            margin: 8px 0;
+            padding: 6px;
+            margin: 6px 0;
             background: #e8f5e8;
-            border-radius: 6px;
+            border-radius: 4px;
         }
         
         .total-label {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
             color: #2c3e50;
         }
         
         .total-amount {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
-            margin: 4px 0;
+            margin: 3px 0;
             color: #27ae60;
         }
         
         .footer {
             text-align: center;
             border-top: 1px dashed #000;
-            padding-top: 8px;
-            margin-top: 8px;
-            font-size: 9px;
+            padding-top: 6px;
+            margin-top: 6px;
+            font-size: 8px;
         }
         
         .footer-message {
@@ -195,14 +196,15 @@ export const printThermalTicket = (data: PrintData) => {
                 margin: 0; 
                 padding: 0; 
                 background: white;
-                width: 280px;
+                width: 384px;
             }
             .thermal-ticket { 
                 border: none;
                 box-shadow: none;
+                max-width: 384px;
             }
             @page {
-                size: 80mm auto;
+                size: 58mm auto;
                 margin: 0;
             }
         }
@@ -338,11 +340,11 @@ export const printModernTicket = (data: PrintData) => {
         
         body {
             font-family: 'Arial', sans-serif;
-            width: 400px;
-            margin: 15px auto;
+            width: 384px;
+            margin: 10px auto;
             background: white;
-            padding: 15px;
-            font-size: 14px;
+            padding: 10px;
+            font-size: 12px;
         }
         
         .ticket {
