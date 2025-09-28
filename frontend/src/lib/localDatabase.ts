@@ -83,6 +83,18 @@ export interface BusinessConfig {
   truckParkingRate: number;
   carwashEnabled: boolean;
   parkingEnabled: boolean;
+  // Nuevos campos para configuración de tickets
+  ticketData: {
+    companyName: string;
+    companySubtitle: string;
+    nit: string;
+    address: string;
+    phone: string;
+    email: string;
+    website: string;
+    footerMessage: string;
+    footerInfo: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { getDualDB } from '../lib/dualDatabase';
 
 interface TicketData {
   id: string;
@@ -24,7 +25,28 @@ interface PrintData {
 }
 
 // Función específica para impresoras POS térmicas
-export const printThermalTicket = (data: PrintData) => {
+export const printThermalTicket = async (data: PrintData) => {
+  // Obtener configuración desde la base de datos
+  const dualDB = getDualDB();
+  let config;
+  try {
+    config = await dualDB.getBusinessConfig();
+  } catch (error) {
+    console.error('Error cargando configuración:', error);
+    config = null;
+  }
+
+  const ticketData = config?.ticketData || {
+    companyName: 'WILSON CARS & WASH',
+    companySubtitle: 'PARKING PROFESSIONAL',
+    nit: '19.475.534-7',
+    address: 'Calle 123 #45-67, Bogotá D.C.',
+    phone: '+57 (1) 234-5678',
+    email: 'info@wilsoncarwash.com',
+    website: 'www.wilsoncarwash.com',
+    footerMessage: '¡Gracias por confiar en nosotros!',
+    footerInfo: 'Horario: 24/7 | Servicio completo de parqueadero'
+  };
   const printWindow = window.open('', '_blank', 'width=300,height=500');
   if (printWindow) {
     const currentDate = new Date().toLocaleDateString('es-CO');
@@ -35,7 +57,7 @@ export const printThermalTicket = (data: PrintData) => {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Wilson Cars & Wash - Ticket Térmico</title>
+    <title>${ticketData.companyName} - Ticket Térmico</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -119,37 +141,46 @@ export const printThermalTicket = (data: PrintData) => {
         
         .barcode-section {
             text-align: center;
-            margin: 6px 0;
-            border: 2px solid #3498db;
-            padding: 6px;
-            background: #f0f8ff;
-            border-radius: 4px;
+            margin: 4px 0;
+            border: 1px solid #2c3e50;
+            padding: 4px;
+            background: #ffffff;
+            border-radius: 2px;
+            max-width: 360px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .barcode-title {
-            font-size: 8px;
+            font-size: 7px;
             font-weight: bold;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
             color: #2c3e50;
+            text-transform: uppercase;
         }
         
         .barcode-code {
             font-family: 'Courier New', monospace;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: bold;
-            margin: 3px 0;
-            letter-spacing: 1px;
-            color: #1976d2;
+            margin: 2px 0;
+            letter-spacing: 0.5px;
+            color: #2c3e50;
         }
         
         .barcode-visual {
             font-family: 'Courier New', monospace;
-            font-size: 10px;
-            margin: 3px 0;
+            font-size: 8px;
+            margin: 2px 0;
             letter-spacing: 0px;
-            line-height: 1;
+            line-height: 0.8;
             font-weight: bold;
-            color: #2c3e50;
+            color: #000;
+            background: #fff;
+            padding: 2px;
+            border: 1px solid #ddd;
+            border-radius: 2px;
+            overflow: hidden;
         }
         
         .total-section {
@@ -213,9 +244,9 @@ export const printThermalTicket = (data: PrintData) => {
 <body>
     <div class="thermal-ticket">
         <div class="header">
-            <div class="company-name">WILSON CARS & WASH</div>
-            <div class="company-subtitle">PARKING PROFESSIONAL</div>
-            <div class="nit">NIT: 19.475.534-7</div>
+            <div class="company-name">${ticketData.companyName}</div>
+            <div class="company-subtitle">${ticketData.companySubtitle}</div>
+            <div class="nit">NIT: ${ticketData.nit}</div>
         </div>
         
         <div class="ticket-type">
@@ -268,12 +299,11 @@ export const printThermalTicket = (data: PrintData) => {
         
         ${data.type === 'entry' ? `
         <div class="barcode-section">
-            <div class="barcode-title">CODIGO DE CONTROL</div>
+            <div class="barcode-title">Código de Control</div>
             <div class="barcode-code">${data.ticket.barcode}</div>
             <div class="barcode-visual">
-█▌█▌█▌▌█▌▌█▌▌▌▌█▌▌▌█▌█▌█▌█▌▌█▌▌█▌█▌█▌▌█▌▌▌█▌▌█<br>
-█▌█▌█▌▌█▌▌█▌▌▌▌█▌▌▌█▌█▌█▌█▌▌█▌▌█▌█▌█▌▌█▌▌▌█▌▌█<br>
-█▌█▌█▌▌█▌▌█▌▌▌▌█▌▌▌█▌█▌█▌█▌▌█▌▌█▌█▌█▌▌█▌▌▌█▌▌█
+▌█▌▌█▌█▌▌▌█▌█▌▌█▌▌█▌█▌▌█▌█▌▌▌█▌▌█▌█▌▌█▌█▌▌▌█▌█▌▌█▌▌█▌█▌▌█▌<br>
+▌█▌▌█▌█▌▌▌█▌█▌▌█▌▌█▌█▌▌█▌█▌▌▌█▌▌█▌█▌▌█▌█▌▌▌█▌█▌▌█▌▌█▌█▌▌█▌
             </div>
         </div>
         ` : `
@@ -287,16 +317,14 @@ export const printThermalTicket = (data: PrintData) => {
         
         <div class="footer">
             <div class="footer-message">
-                ${data.type === 'entry' ? 
-                    'CONSERVE ESTE TICKET PARA LA SALIDA' : 
-                    'GRACIAS POR SU VISITA'
-                }
+                ${ticketData.footerMessage}
             </div>
             <div class="footer-info">
-                Wilson Cars & Wash<br>
-                Tel: +57 (1) 234-5678<br>
-                www.wilsoncarwash.com<br>
-                Atencion 24/7
+                ${ticketData.companyName}<br>
+                ${ticketData.address}<br>
+                ${ticketData.phone} | ${ticketData.email}<br>
+                ${ticketData.website}<br>
+                ${ticketData.footerInfo}
             </div>
             <div class="separator"></div>
             <div style="font-size: 8px;">
@@ -322,7 +350,28 @@ export const printThermalTicket = (data: PrintData) => {
   }
 };
 
-export const printModernTicket = (data: PrintData) => {
+export const printModernTicket = async (data: PrintData) => {
+  // Obtener configuración desde la base de datos
+  const dualDB = getDualDB();
+  let config;
+  try {
+    config = await dualDB.getBusinessConfig();
+  } catch (error) {
+    console.error('Error cargando configuración:', error);
+    config = null;
+  }
+
+  const ticketData = config?.ticketData || {
+    companyName: 'WILSON CARS & WASH',
+    companySubtitle: 'PARKING PROFESSIONAL',
+    nit: '19.475.534-7',
+    address: 'Calle 123 #45-67, Bogotá D.C.',
+    phone: '+57 (1) 234-5678',
+    email: 'info@wilsoncarwash.com',
+    website: 'www.wilsoncarwash.com',
+    footerMessage: '¡Gracias por confiar en nosotros!',
+    footerInfo: 'Horario: 24/7 | Servicio completo de parqueadero'
+  };
   const printWindow = window.open('', '_blank', 'width=450,height=700');
   if (printWindow) {
     const baseUrl = window.location.origin;
@@ -334,7 +383,7 @@ export const printModernTicket = (data: PrintData) => {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Wilson Cars & Wash - ${data.type === 'entry' ? 'Ticket de Entrada' : 'Factura de Salida'}</title>
+    <title>${ticketData.companyName} - ${data.type === 'entry' ? 'Ticket de Entrada' : 'Factura de Salida'}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -655,10 +704,10 @@ export const printModernTicket = (data: PrintData) => {
     <div class="ticket">
         <div class="header">
             <div class="logo">
-                <img src="${baseUrl}/images/company-logo.jpg" alt="Wilson Cars & Wash" 
-                     onerror="this.parentElement.innerHTML='<div style=&quot;font-weight:bold;color:#2563eb;font-size:12px;&quot;>WILSON<br>CARS &amp; WASH</div>'" />
+                <img src="${baseUrl}/images/company-logo.jpg" alt="${ticketData.companyName}" 
+                     onerror="this.parentElement.innerHTML='<div style=&quot;font-weight:bold;color:#2563eb;font-size:12px;&quot;>${ticketData.companyName.split(' ').join('<br>')}</div>'" />
             </div>
-            <div class="company-name">WILSON CARS & WASH</div>
+            <div class="company-name">${ticketData.companyName}</div>
             <div class="company-subtitle">PARKING PROFESSIONAL</div>
             <div class="nit">NIT: 19.475.534-7</div>
         </div>
@@ -715,9 +764,8 @@ export const printModernTicket = (data: PrintData) => {
                 <div class="barcode-title">Código de Control de Entrada</div>
                 <div class="barcode-code">${data.ticket.barcode}</div>
                 <div class="barcode-visual">
-█▌█▌█▌▌█▌▌█▌▌▌▌█▌▌▌█▌█▌█▌█▌▌█▌▌█▌█▌█▌▌█▌▌▌█▌▌█<br>
-█▌█▌█▌▌█▌▌█▌▌▌▌█▌▌▌█▌█▌█▌█▌▌█▌▌█▌█▌█▌▌█▌▌▌█▌▌█<br>
-█▌█▌█▌▌█▌▌█▌▌▌▌█▌▌▌█▌█▌█▌█▌▌█▌▌█▌█▌█▌▌█▌▌▌█▌▌█
+▌█▌▌█▌█▌▌▌█▌█▌▌█▌▌█▌█▌▌█▌█▌▌▌█▌▌█▌█▌▌█▌█▌▌▌█▌█▌▌█▌▌█▌█▌▌█▌<br>
+▌█▌▌█▌█▌▌▌█▌█▌▌█▌▌█▌█▌▌█▌█▌▌▌█▌▌█▌█▌▌█▌█▌▌▌█▌█▌▌█▌▌█▌█▌▌█▌
                 </div>
                 <div style="font-size: 11px; color: #2c3e50; margin-top: 8px; font-weight: 600; position: relative; z-index: 1;">
                     Escanear este código para procesar la salida

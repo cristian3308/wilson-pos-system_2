@@ -45,6 +45,17 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
           truckParkingRate: 4000,
           carwashEnabled: true,
           parkingEnabled: true,
+          ticketData: {
+            companyName: 'WILSON CARS & WASH',
+            companySubtitle: 'PARKING PROFESSIONAL',
+            nit: '19.475.534-7',
+            address: 'Calle 123 #45-67, Bogotá D.C.',
+            phone: '+57 (1) 234-5678',
+            email: 'info@wilsoncarwash.com',
+            website: 'www.wilsoncarwash.com',
+            footerMessage: '¡Gracias por confiar en nosotros!',
+            footerInfo: 'Horario: 24/7 | Servicio completo de parqueadero'
+          },
           createdAt: new Date(),
           updatedAt: new Date()
         };
@@ -94,6 +105,30 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
     setConfig({
       ...config,
       [field]: value
+    });
+  };
+
+  const updateTicketData = (field: string, value: string) => {
+    if (!config) return;
+    
+    const ticketData = config.ticketData || {
+      companyName: '',
+      companySubtitle: '',
+      nit: '',
+      address: '',
+      phone: '',
+      email: '',
+      website: '',
+      footerMessage: '',
+      footerInfo: ''
+    };
+    
+    setConfig({
+      ...config,
+      ticketData: {
+        ...ticketData,
+        [field]: value
+      }
     });
   };
 
@@ -268,6 +303,138 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Configuración de datos del ticket */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-green-500 to-teal-600 p-6">
+              <div className="flex items-center space-x-3">
+                <span className="text-2xl">🎫</span>
+                <h2 className="text-xl font-bold text-white">Configuración de Tickets</h2>
+              </div>
+              <p className="text-green-100 mt-2">Personaliza la información que aparece en los tickets impresos</p>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Nombre de la Empresa
+                  </label>
+                  <input
+                    type="text"
+                    value={config.ticketData?.companyName || ''}
+                    onChange={(e) => updateTicketData('companyName', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                    placeholder="WILSON CARS & WASH"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Subtítulo de la Empresa
+                  </label>
+                  <input
+                    type="text"
+                    value={config.ticketData?.companySubtitle || ''}
+                    onChange={(e) => updateTicketData('companySubtitle', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                    placeholder="PARKING PROFESSIONAL"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    NIT o Documento
+                  </label>
+                  <input
+                    type="text"
+                    value={config.ticketData?.nit || ''}
+                    onChange={(e) => updateTicketData('nit', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                    placeholder="19.475.534-7"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Teléfono
+                  </label>
+                  <input
+                    type="text"
+                    value={config.ticketData?.phone || ''}
+                    onChange={(e) => updateTicketData('phone', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                    placeholder="+57 (1) 234-5678"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={config.ticketData?.email || ''}
+                    onChange={(e) => updateTicketData('email', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                    placeholder="info@wilsoncarwash.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Sitio Web
+                  </label>
+                  <input
+                    type="text"
+                    value={config.ticketData?.website || ''}
+                    onChange={(e) => updateTicketData('website', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                    placeholder="www.wilsoncarwash.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Dirección Completa
+                </label>
+                <input
+                  type="text"
+                  value={config.ticketData?.address || ''}
+                  onChange={(e) => updateTicketData('address', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Calle 123 #45-67, Bogotá D.C."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Mensaje de Pie de Página
+                </label>
+                <input
+                  type="text"
+                  value={config.ticketData?.footerMessage || ''}
+                  onChange={(e) => updateTicketData('footerMessage', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                  placeholder="¡Gracias por confiar en nosotros!"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Información Adicional
+                </label>
+                <textarea
+                  value={config.ticketData?.footerInfo || ''}
+                  onChange={(e) => updateTicketData('footerInfo', e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Horario: 24/7 | Servicio completo de parqueadero"
+                />
               </div>
             </div>
           </div>
