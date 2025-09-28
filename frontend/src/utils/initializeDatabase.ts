@@ -70,6 +70,18 @@ const initialBusinessConfig = {
   truckParkingRate: 4000,
   carwashEnabled: true,
   parkingEnabled: true,
+  // Configuración de datos para tickets
+  ticketData: {
+    companyName: 'Parqueadero y Lavadero Local',
+    companySubtitle: 'Sistema de Gestión Vehicular',
+    nit: '900.123.456-7',
+    address: 'Calle Principal 123',
+    phone: '3001234567',
+    email: 'info@parqueadero.com',
+    website: 'www.parqueadero.com',
+    footerMessage: 'Gracias por preferirnos',
+    footerInfo: 'Conserve este ticket para el retiro del vehículo'
+  },
   createdAt: new Date(),
   updatedAt: new Date()
 };

@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import CompanyLogo from './ui/CompanyLogo';
 import DatabaseStatus from './DatabaseStatus';
+import DateRangeFilter, { DateRange } from './DateRangeFilter';
+import { useHistoryData } from '../hooks/useHistoryData';
 import { useHydration } from '@/hooks/useHydration';
 
 interface MetricCardProps {
@@ -99,6 +101,19 @@ export default function ImprovedDashboard() {
   const isHydrated = useHydration();
   const [currentTime, setCurrentTime] = useState('');
 
+  // Hook para datos del historial con filtros
+  const {
+    parkingRecords,
+    carwashRecords,
+    dailySummary,
+    loading: historyLoading,
+    loadData,
+    currentDateRange
+  } = useHistoryData();
+
+  // Estado para mostrar/ocultar filtros
+  const [showFilters, setShowFilters] = useState(false);
+
   useEffect(() => {
     if (isHydrated) {
       const updateTime = () => {
@@ -157,39 +172,83 @@ export default function ImprovedDashboard() {
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* Sección de Filtros */}
+      <div className="mb-6">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5" />
+                <span>Filtros de Dashboard</span>
+              </h2>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>{showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}</span>
+              </button>
+            </div>
+          </div>
+          
+          {showFilters && (
+            <div className="p-4">
+              <DateRangeFilter 
+                onFilterChange={loadData}
+                className="border-0 p-0 bg-transparent"
+              />
+              
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="text-sm text-blue-800">
+                  <strong>Período actual:</strong> {currentDateRange ? (
+                    `${currentDateRange.startDate.toLocaleDateString('es-CO')} - ${currentDateRange.endDate.toLocaleDateString('es-CO')}`
+                  ) : 'Hoy'}
+                  {historyLoading && (
+                    <span className="ml-2 inline-flex items-center">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      <span className="ml-1">Cargando...</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Metrics Cards - Ahora con datos reales */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <MetricCard
-          title="Ingresos del Día"
-          value="$ NaN"
-          subtitle="Parqueadero: $ NaN | Lavadero: $ NaN"
+          title="Ingresos del Período"
+          value={`$${dailySummary.totalRevenue.toLocaleString()}`}
+          subtitle={`Parqueadero: $${dailySummary.parkingRevenue.toLocaleString()} | Lavadero: $${dailySummary.carwashRevenue.toLocaleString()}`}
           icon={DollarSign}
           gradient="from-green-500 to-green-700"
           trend={{ value: 12, isPositive: true }}
         />
         
         <MetricCard
-          title="Vehículos en Parqueadero"
-          value="0"
-          subtitle="Ocupación: 0%"
+          title="Vehículos Atendidos"
+          value={dailySummary.totalTransactions.toString()}
+          subtitle={`Parking: ${dailySummary.parkingTransactions} | Lavado: ${dailySummary.carwashTransactions}`}
           icon={Car}
           gradient="from-blue-500 to-blue-700"
         />
         
         <MetricCard
-          title="Espacios Libres"
-          value="0"
-          subtitle="Disponibles ahora"
+          title="Vehículos Activos"
+          value={parkingRecords.filter(record => record.status === 'active').length.toString()}
+          subtitle="En parqueadero ahora"
           icon={Building}
           gradient="from-purple-500 to-purple-700"
         />
         
         <MetricCard
-          title="Órdenes de Lavado"
-          value="0"
-          subtitle="Básico: 0 | Completo: 0 | Premium: 0"
+          title="Servicios en Progreso"
+          value={carwashRecords.filter(record => record.status === 'in_progress').length.toString()}
+          subtitle="Lavados activos"
           icon={Droplets}
-          gradient="from-orange-500 to-orange-700"
+          gradient="from-cyan-500 to-cyan-700"
         />
       </div>
 
