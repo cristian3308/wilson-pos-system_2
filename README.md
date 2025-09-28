@@ -1,117 +1,230 @@
-# 🚗💎 Wilson POS System - Sistema Profesional de Parqueadero y Lavadero# 🚗 POS Web Professional - Sistema de Parqueadero y Lavadero
+# 🚗 POS Web Professional - Sistema de Parqueadero y Lavadero# 🚗💎 Wilson POS System - Sistema Profesional de Parqueadero y Lavadero# 🚗 POS Web Professional - Sistema de Parqueadero y Lavadero
 
 
-
-![Wilson POS](https://img.shields.io/badge/Wilson%20POS-v1.0.0-blue.svg)## 📋 Descripción
 
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
 
-![React](https://img.shields.io/badge/React-18+-blue.svg)Sistema profesional de gestión de parqueadero y lavadero desarrollado con tecnologías web modernas. Diseñado con arquitectura de microservicios, responsive design y funcionalidades en tiempo real.
+![React](https://img.shields.io/badge/React-18+-blue.svg)
 
-![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)
-
-![Electron](https://img.shields.io/badge/Electron-27+-purple.svg)## 🏗️ Arquitectura del Proyecto
+![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)![Wilson POS](https://img.shields.io/badge/Wilson%20POS-v1.0.0-blue.svg)## 📋 Descripción
 
 
 
-**Sistema integral de gestión para parqueaderos y lavaderos de vehículos con interfaz moderna, base de datos local y funcionalidades avanzadas.**```
+## 📋 Descripción![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
+
+
+
+Sistema profesional de gestión de parqueadero y lavadero desarrollado con tecnologías web modernas. Interfaz responsive, base de datos local y funcionalidades en tiempo real.![React](https://img.shields.io/badge/React-18+-blue.svg)Sistema profesional de gestión de parqueadero y lavadero desarrollado con tecnologías web modernas. Diseñado con arquitectura de microservicios, responsive design y funcionalidades en tiempo real.
+
+
+
+## 🏗️ Estructura del Proyecto![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)
+
+
+
+```![Electron](https://img.shields.io/badge/Electron-27+-purple.svg)## 🏗️ Arquitectura del Proyecto
 
 pos-web-professional/
 
+├── 📱 frontend/                 # React + Next.js + TypeScript + Tailwind
+
+├── 🔧 backend/                  # Node.js + Express + SQLite
+
+└── 📄 README.md                 # Este archivo**Sistema integral de gestión para parqueaderos y lavaderos de vehículos con interfaz moderna, base de datos local y funcionalidades avanzadas.**```
+
+```
+
+pos-web-professional/
+
+## 🌟 Características Principales
+
 ## 🌟 Características Principales├── 📱 frontend/                 # React + TypeScript + Tailwind
 
-├── 🔧 backend/                  # Node.js + Express + MongoDB
+### 🚗 **Sistema de Parqueadero**
 
-### 🚗 **Sistema de Parqueadero**├── 🐳 docker/                   # Configuración Docker
+- ✅ Ingreso y egreso automatizado de vehículos├── 🔧 backend/                  # Node.js + Express + MongoDB
+
+- ✅ Cálculo automático de tiempo y tarifas
+
+- ✅ Control de espacios disponibles### 🚗 **Sistema de Parqueadero**├── 🐳 docker/                   # Configuración Docker
+
+- ✅ Gestión de tarifas personalizables
 
 - ✅ Ingreso y egreso automatizado de vehículos├── 📄 docs/                     # Documentación
 
-- ✅ Cálculo automático de tiempo y tarifas└── 🧪 tests/                    # Tests automatizados
+### 🧽 **Sistema de Lavadero**
 
-- ✅ Códigos de barras únicos para cada ticket```
+- ✅ Gestión de órdenes de lavado- ✅ Cálculo automático de tiempo y tarifas└── 🧪 tests/                    # Tests automatizados
+
+- ✅ Diferentes tipos de servicios
+
+- ✅ Control de estado de órdenes- ✅ Códigos de barras únicos para cada ticket```
+
+- ✅ Facturación integrada
 
 - ✅ Impresión térmica de tickets profesionales
 
-- ✅ Soporte para Carros, Motos y Camiones## 🚀 Tecnologías Utilizadas
+### 📊 **Dashboard y Reportes**
 
-- ✅ Gestión de espacios disponibles
+- ✅ Estadísticas en tiempo real- ✅ Soporte para Carros, Motos y Camiones## 🚀 Tecnologías Utilizadas
+
+- ✅ Gráficos interactivos
+
+- ✅ Reportes de ingresos- ✅ Gestión de espacios disponibles
+
+- ✅ Panel de administración
 
 ### Frontend
 
-### 🧽 **Sistema de Lavadero**- **React 18** con TypeScript
+### 🎨 **Interfaz Moderna**
 
-- ✅ Gestión completa de órdenes de lavado- **Next.js 14** para SSR y optimización
+- ✅ Diseño responsive (móvil, tablet, desktop)### 🧽 **Sistema de Lavadero**- **React 18** con TypeScript
+
+- ✅ Tema oscuro/claro
+
+- ✅ Animaciones fluidas- ✅ Gestión completa de órdenes de lavado- **Next.js 14** para SSR y optimización
+
+- ✅ Componentes reutilizables
 
 - ✅ Servicios configurables (Básico, Premium, Encerado, etc.)- **Tailwind CSS** para estilos modernos
 
+## 🚀 Instalación y Uso
+
 - ✅ Control de estados (Pendiente, En Proceso, Completado)- **Zustand** para estado global
 
-- ✅ Facturación integrada con desglose detallado- **React Query** para manejo de datos
+### Prerrequisitos
+
+- Node.js 18+- ✅ Facturación integrada con desglose detallado- **React Query** para manejo de datos
+
+- npm o yarn
 
 - ✅ Asignación de trabajadores- **Chart.js/D3.js** para visualizaciones
 
-- ✅ Tiempo estimado de servicios- **Socket.IO Client** para tiempo real
+### Instalación
 
-- **React Hook Form** para formularios
+```bash- ✅ Tiempo estimado de servicios- **Socket.IO Client** para tiempo real
 
-### 🗄️ **Base de Datos Local**- **Framer Motion** para animaciones
+# Clonar el repositorio
+
+git clone https://github.com/cristian3308/wilson-pos-system.git- **React Hook Form** para formularios
+
+
+
+# Instalar dependencias### 🗄️ **Base de Datos Local**- **Framer Motion** para animaciones
+
+npm install
 
 - ✅ SQLite integrado (sin servidor externo)
 
-- ✅ CRUD completo para todos los módulos### Backend
+# Iniciar la aplicación
+
+npm run dev- ✅ CRUD completo para todos los módulos### Backend
+
+```
 
 - ✅ Exportación a Excel/CSV- **Node.js** con TypeScript
 
-- ✅ Filtros avanzados por fecha, estado, tipo- **Express.js** con arquitectura en capas
+### Acceso
 
-- ✅ Respaldo automático de datos- **MongoDB** con Mongoose ODM
+- **Frontend**: http://localhost:3000- ✅ Filtros avanzados por fecha, estado, tipo- **Express.js** con arquitectura en capas
+
+- **Backend**: http://localhost:5000
+
+- **Usuario**: admin- ✅ Respaldo automático de datos- **MongoDB** con Mongoose ODM
+
+- **Contraseña**: admin123
 
 - ✅ Estadísticas en tiempo real- **JWT** para autenticación
 
+## 💻 Tecnologías
+
 - **Socket.IO** para WebSockets
 
-### ⚙️ **Panel de Administración**- **Joi** para validaciones
+### Frontend
 
-- ✅ Configuración de precios dinámicos- **Winston** para logging
+- **React 18** - Biblioteca de UI### ⚙️ **Panel de Administración**- **Joi** para validaciones
 
-- ✅ Gestión de datos del negocio- **Jest** para testing
+- **Next.js 14** - Framework de React
 
-- ✅ Usuarios y permisos- **Helmet** para seguridad
+- **TypeScript** - Tipado estático- ✅ Configuración de precios dinámicos- **Winston** para logging
 
-- ✅ Reportes detallados
+- **Tailwind CSS** - Framework de CSS
 
-- ✅ Dashboard con métricas importantes### DevOps & Tools
+- **Framer Motion** - Animaciones- ✅ Gestión de datos del negocio- **Jest** para testing
 
-- **Docker & Docker Compose**
 
-### 🎨 **Interfaz Moderna**- **GitHub Actions** para CI/CD
 
-- ✅ Diseño responsivo y profesional- **ESLint & Prettier** para calidad de código
+### Backend- ✅ Usuarios y permisos- **Helmet** para seguridad
 
-- ✅ Gradientes y animaciones fluidas- **Husky** para git hooks
+- **Node.js** - Runtime de JavaScript
 
-- ✅ Iconos intuitivos- **Swagger** para documentación API
+- **Express.js** - Framework web- ✅ Reportes detallados
 
-- ✅ Optimizado para pantallas táctiles
+- **SQLite** - Base de datos local
 
-## 🎯 Características Principales
+- **Socket.io** - Comunicación en tiempo real- ✅ Dashboard con métricas importantes### DevOps & Tools
 
-## 🚀 Instalación Rápida
 
-### 🅿️ Sistema de Parqueadero
 
-### 📋 **Requisitos del Sistema**- Gestión de espacios en tiempo real
+## 📱 Características Técnicas- **Docker & Docker Compose**
 
-- Windows 10 o superior (64-bit)- Códigos QR/Barras para tickets
 
-- 4GB RAM mínimo- Cámaras de seguridad integradas
 
-- 500MB espacio libre en disco- Pagos digitales (Stripe/PayPal)
+- 🎯 **SPA (Single Page Application)**### 🎨 **Interfaz Moderna**- **GitHub Actions** para CI/CD
+
+- 🔄 **Actualizaciones en tiempo real**
+
+- 📱 **Diseño responsive**- ✅ Diseño responsivo y profesional- **ESLint & Prettier** para calidad de código
+
+- 🗄️ **Base de datos local SQLite**
+
+- 🔐 **Sistema de autenticación**- ✅ Gradientes y animaciones fluidas- **Husky** para git hooks
+
+- 🖨️ **Generación de tickets**
+
+- 📊 **Dashboard con métricas**- ✅ Iconos intuitivos- **Swagger** para documentación API
+
+
+
+## 🤝 Contribución- ✅ Optimizado para pantallas táctiles
+
+
+
+1. Fork el proyecto## 🎯 Características Principales
+
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)## 🚀 Instalación Rápida
+
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+
+5. Abre un Pull Request### 🅿️ Sistema de Parqueadero
+
+
+
+## 📄 Licencia### 📋 **Requisitos del Sistema**- Gestión de espacios en tiempo real
+
+
+
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.- Windows 10 o superior (64-bit)- Códigos QR/Barras para tickets
+
+
+
+## 👨‍💻 Autor- 4GB RAM mínimo- Cámaras de seguridad integradas
+
+
+
+**Ingeniero de Sistemas Senior**- 500MB espacio libre en disco- Pagos digitales (Stripe/PayPal)
+
+- GitHub: [@cristian3308](https://github.com/cristian3308)
 
 - **NO requiere Node.js en el equipo destino**- Notificaciones push automáticas
 
+---
+
 - Sistema de reservas
 
+⭐ ¡Dale una estrella al proyecto si te ha sido útil!
 ### 💻 **Para Desarrolladores**
 
 ```bash### 🚿 Sistema de Lavadero

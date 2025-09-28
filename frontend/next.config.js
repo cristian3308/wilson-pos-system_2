@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  trailingSlash: true,
-  distDir: 'out',
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'http',
@@ -15,7 +11,6 @@ const nextConfig = {
         hostname: 'res.cloudinary.com',
       }
     ],
-    formats: ['image/webp', 'image/avif'],
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
@@ -38,33 +33,6 @@ const nextConfig = {
   poweredByHeader: false,
   generateEtags: false,
   compress: true,
-  // Security headers
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
-        ],
-      },
-    ];
-  },
-  // Enable experimental features
-  experimental: {
-    optimizeCss: true,
-    scrollRestoration: true,
-  },
 };
 
 module.exports = nextConfig;
