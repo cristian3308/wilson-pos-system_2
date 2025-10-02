@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Car, Clock, DollarSign, Plus, Search, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Car, Clock, DollarSign, Plus, Search, X, CheckCircle, AlertCircle, BarChart3 } from 'lucide-react';
 import { getDualDB, Vehicle, ParkingTicket, BusinessConfig } from '../lib/dualDatabase';
+import ParkingReportManagement from './ParkingReportManagement';
 
 interface ParkingManagementProps {
   className?: string;
@@ -15,6 +16,7 @@ export default function ParkingManagement({ className }: ParkingManagementProps)
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [businessConfig, setBusinessConfig] = useState<BusinessConfig | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showParkingReport, setShowParkingReport] = useState(false);
 
   // Form para entrada de vehículo
   const [vehicleForm, setVehicleForm] = useState({
@@ -163,10 +165,19 @@ export default function ParkingManagement({ className }: ParkingManagementProps)
     return diffHours * rate;
   };
 
-  const vehicleTypeNames = {
+  const vehicleTypeNames: Record<string, string> = {
     car: 'Carro',
     motorcycle: 'Moto', 
     truck: 'Camión'
+  };
+
+  const getVehicleTypeName = (type: string): string => {
+    // Si es un tipo predeterminado, usar el nombre del mapeo
+    if (vehicleTypeNames[type]) {
+      return vehicleTypeNames[type];
+    }
+    // Si es un tipo personalizado, retornar el tipo tal cual (será resuelto más adelante)
+    return type;
   };
 
   const getVehicleIcon = (type: string) => {
@@ -189,6 +200,11 @@ export default function ParkingManagement({ className }: ParkingManagementProps)
     );
   }
 
+  // Si estamos viendo el reporte, mostrar ese componente
+  if (showParkingReport) {
+    return <ParkingReportManagement />;
+  }
+
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
@@ -199,13 +215,22 @@ export default function ParkingManagement({ className }: ParkingManagementProps)
             {businessConfig?.businessName || 'Wilson Cars & Wash'}
           </p>
         </div>
-        <button
-          onClick={() => setShowEntryForm(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          <Plus size={20} />
-          Registrar Entrada
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowParkingReport(!showParkingReport)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-lg hover:shadow-xl"
+          >
+            <BarChart3 size={20} />
+            {showParkingReport ? 'Ver Parqueadero' : 'Ver Reportes'}
+          </button>
+          <button
+            onClick={() => setShowEntryForm(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            <Plus size={20} />
+            Registrar Entrada
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -280,7 +305,7 @@ export default function ParkingManagement({ className }: ParkingManagementProps)
                     <div className="flex items-center gap-2">
                       <span className="text-xl font-bold text-white">{ticket.placa}</span>
                       <span className="text-sm text-gray-400">
-                        {vehicleTypeNames[ticket.vehicleType]}
+                        {getVehicleTypeName(ticket.vehicleType)}
                       </span>
                     </div>
                     <div className="text-sm text-gray-400">

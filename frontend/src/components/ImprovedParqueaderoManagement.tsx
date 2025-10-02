@@ -30,8 +30,11 @@ import { useHydration } from '@/hooks/useHydration';
 import { dualDatabase } from '@/lib/dualDatabase';
 import { parkingSystem } from '@/lib/parkingSystem';
 import { barcodeReaderService } from '../services/BarcodeReaderService';
+import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
 import BarcodeReaderConfig from './BarcodeReaderConfig';
 import SyncButton from './SyncButton';
+import AddVehicleTypeModal from './AddVehicleTypeModal';
+import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 
 interface TicketData {
   id: string;
@@ -55,7 +58,16 @@ interface VehicleType {
 import { printModernTicket } from './PrintFallback';
 import { printThermalTicket } from './PrintFallback';
 
-const vehicleTypes: VehicleType[] = [
+// Iconos disponibles para mapear con los tipos dinámicos
+const iconMap: { [key: string]: React.ComponentType<any> } = {
+  Car: Car,
+  Truck: Car, // Puedes cambiar por un icono específico
+  Bike: Car   // Puedes cambiar por un icono específico
+};
+
+// Tipos de vehículos predeterminados (se combinan con los dinámicos)
+const defaultVehicleTypes: VehicleType[] = [
+  { id: 'todos', name: 'Todos los tipos', icon: Car, tarifa: 0 }, // Para mostrar todos sin filtrar
   { id: 'carro', name: 'Carro', icon: Car, tarifa: 2000 },
   { id: 'moto', name: 'Moto', icon: Car, tarifa: 1500 },
   { id: 'camioneta', name: 'Camioneta', icon: Car, tarifa: 3000 },
@@ -82,7 +94,12 @@ const sampleVehicles: VehicleRecord[] = [];
 export default function ImprovedParqueaderoManagement() {
   const isHydrated = useHydration();
   const [currentTime, setCurrentTime] = useState('');
-  const [selectedVehicleType, setSelectedVehicleType] = useState<VehicleType>(vehicleTypes[0]);
+  
+  // Estados para tipos de vehículos dinámicos
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(defaultVehicleTypes);
+  const [showAddVehicleTypeModal, setShowAddVehicleTypeModal] = useState(false);
+  
+  const [selectedVehicleType, setSelectedVehicleType] = useState<VehicleType>(defaultVehicleTypes[0]);
   const [placa, setPlaca] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
@@ -192,6 +209,7 @@ export default function ImprovedParqueaderoManagement() {
         console.log(`🔍 Ticket ${index + 1}:`, {
           id: ticket.id,
           placa: ticket.placa,
+          vehicleType: ticket.vehicleType, // ✅ Ver qué tipo tiene
           status: ticket.status,
           isPaid: ticket.isPaid,
           exitTime: ticket.exitTime,
@@ -274,6 +292,67 @@ export default function ImprovedParqueaderoManagement() {
     }
   };
 
+  // === FUNCIONES PARA TIPOS DE VEHÍCULOS ===
+  
+  // Cargar tipos de vehículos dinámicos
+  const loadVehicleTypes = async () => {
+    try {
+      const localDB = getLocalDB();
+      const customTypes = await localDB.getVehicleTypes();
+      
+      // Combinar tipos predeterminados con tipos personalizados
+      const combinedTypes: VehicleType[] = [
+        ...defaultVehicleTypes,
+        ...customTypes.map(customType => ({
+          id: customType.id,
+          name: customType.name,
+          icon: iconMap[customType.iconName] || Car,
+          tarifa: customType.tarifa
+        }))
+      ];
+      
+      setVehicleTypes(combinedTypes);
+      
+      // Actualizar el tipo seleccionado si es necesario
+      if (!combinedTypes.some(type => type.id === selectedVehicleType.id)) {
+        setSelectedVehicleType(combinedTypes[0]);
+      }
+      
+      console.log('✅ Tipos de vehículos cargados:', combinedTypes.length);
+    } catch (error) {
+      console.error('❌ Error cargando tipos de vehículos:', error);
+    }
+  };
+
+  // Agregar nuevo tipo de vehículo
+  const handleAddVehicleType = async (newType: VehicleType) => {
+    try {
+      const localDB = getLocalDB();
+      
+      const vehicleTypeConfig: VehicleTypeConfig = {
+        id: newType.id,
+        name: newType.name,
+        iconName: 'Car', // Por ahora usamos Car como default
+        tarifa: newType.tarifa,
+        isCustom: true,
+        createdAt: new Date()
+      };
+
+      await localDB.saveVehicleType(vehicleTypeConfig);
+      
+      // Recargar tipos de vehículos
+      await loadVehicleTypes();
+      
+      // Emitir evento para notificar a otros componentes
+      appEvents.emit(APP_EVENTS.VEHICLE_TYPE_ADDED, vehicleTypeConfig);
+      
+      console.log('✅ Nuevo tipo de vehículo agregado:', newType.name);
+    } catch (error) {
+      console.error('❌ Error agregando tipo de vehículo:', error);
+      alert('Error al agregar el tipo de vehículo: ' + (error as Error).message);
+    }
+  };
+
   useEffect(() => {
     if (isHydrated) {
       const updateTime = () => {
@@ -297,6 +376,13 @@ export default function ImprovedParqueaderoManagement() {
       loadParkingData();
       
       return () => clearInterval(interval);
+    }
+  }, [isHydrated]);
+
+  // Cargar tipos de vehículos dinámicos
+  useEffect(() => {
+    if (isHydrated) {
+      loadVehicleTypes();
     }
   }, [isHydrated]);
 
@@ -415,17 +501,17 @@ export default function ImprovedParqueaderoManagement() {
             console.log('Impresora térmica detectada:', printers[0].label);
             printThermalTicket(data);
           } else {
-            console.log('Usando diseño moderno para impresión estándar');
-            printModernTicket(data);
+            console.log('Usando diseño térmico por defecto');
+            printThermalTicket(data);
           }
         })
         .catch(() => {
-          // Fallback: usar diseño moderno
-          printModernTicket(data);
+          // Fallback: usar diseño térmico
+          printThermalTicket(data);
         });
     } else {
-      // Fallback: usar diseño moderno
-      printModernTicket(data);
+      // Fallback: usar diseño térmico
+      printThermalTicket(data);
     }
   };
 
@@ -440,13 +526,18 @@ export default function ImprovedParqueaderoManagement() {
       console.log('🚗 Generando ticket de entrada para:', placa.toUpperCase());
       
       // Usar el sistema de parqueadero para procesar entrada
+      console.log('🔍 DEBUG - selectedVehicleType completo:', selectedVehicleType);
+      console.log('🔍 DEBUG - ID del tipo:', selectedVehicleType.id);
+      console.log('🔍 DEBUG - Nombre del tipo:', selectedVehicleType.name);
+      
       const newTicket = await parkingSystem.processEntry(
         placa.toUpperCase(),
-        selectedVehicleType.name,
+        selectedVehicleType.id, // ✅ Pasar el ID, no el nombre
         selectedVehicleType.tarifa
       );
       
       console.log('✅ Ticket generado por parkingSystem:', newTicket);
+      console.log('✅ vehicleType en ticket:', newTicket.vehicleType);
 
       // Convertir el ticket del sistema a formato TicketData para el frontend
       const ticketForFrontend: TicketData = {
@@ -493,6 +584,16 @@ export default function ImprovedParqueaderoManagement() {
       
       setPlaca('');
       setShowNewVehicleModal(false);
+      
+      // Recargar datos para asegurar sincronización completa
+      console.log('🔄 Recargando datos del parqueadero después de entrada...');
+      await loadParkingData();
+      
+      // Recarga adicional después de un pequeño delay para asegurar sincronización
+      setTimeout(async () => {
+        console.log('🔄 Recarga adicional de datos después de entrada...');
+        await loadParkingData();
+      }, 1000);
       
       console.log('✅ Ticket de entrada procesado completamente');
       
@@ -1685,15 +1786,29 @@ export default function ImprovedParqueaderoManagement() {
     };
   }, []);
 
+  // Función para obtener el nombre del tipo de vehículo
+  const getVehicleTypeName = (vehicleTypeId: string): string => {
+    // Tipos predeterminados
+    if (vehicleTypeId === 'car') return 'Carro';
+    if (vehicleTypeId === 'motorcycle') return 'Moto';
+    if (vehicleTypeId === 'truck') return 'Camión';
+    
+    // Buscar en tipos personalizados cargados
+    const customType = vehicleTypes.find(vt => vt.id === vehicleTypeId);
+    if (customType) {
+      return customType.name;
+    }
+    
+    // Si no se encuentra, retornar el ID
+    return vehicleTypeId;
+  };
+
   // Filtrar vehículos - combinar tickets activos con historial
   const allVehicles = [
     // Convertir tickets activos a formato de vehículo para la tabla
     ...activeTickets.map(ticket => ({
       id: ticket.id,
-      vehiculo: ticket.vehicleType === 'car' ? 'Carro' : 
-                ticket.vehicleType === 'motorcycle' ? 'Moto' : 
-                ticket.vehicleType === 'truck' ? 'Camión' : 
-                ticket.vehicleType,
+      vehiculo: getVehicleTypeName(ticket.vehicleType),
       placa: ticket.placa,
       tipo: 'Por Fracción', // Los activos siempre son por fracción
       entrada: ticket.fechaEntrada.toLocaleString('es-CO'),
@@ -1812,7 +1927,16 @@ export default function ImprovedParqueaderoManagement() {
       {/* Vehicle Type Selection */}
       <div className="mb-6">
         <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Tipo de Vehículo</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-800">Tipo de Vehículo</h2>
+            <button
+              onClick={() => setShowAddVehicleTypeModal(true)}
+              className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Agregar Tipo</span>
+            </button>
+          </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {vehicleTypes.map((type, index) => (
@@ -2172,6 +2296,14 @@ export default function ImprovedParqueaderoManagement() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Modal para agregar tipo de vehículo */}
+      <AddVehicleTypeModal
+        isOpen={showAddVehicleTypeModal}
+        onClose={() => setShowAddVehicleTypeModal(false)}
+        onAdd={handleAddVehicleType}
+        existingTypes={vehicleTypes}
+      />
     </div>
   );
 }

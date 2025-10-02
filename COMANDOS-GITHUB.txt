@@ -1,0 +1,133 @@
+===========================================
+   📤 COMANDOS PARA SUBIR A GITHUB
+===========================================
+
+⚠️ IMPORTANTE: Cambiar "TU-USUARIO" por tu usuario real de GitHub
+
+-------------------------------------------
+PASO 1: Verificar Git
+-------------------------------------------
+git --version
+
+Si no está instalado, descargar: https://git-scm.com/
+
+
+-------------------------------------------
+PASO 2: Configurar Git (Primera vez)
+-------------------------------------------
+git config --global user.name "Tu Nombre"
+git config --global user.email "tu-email@ejemplo.com"
+
+
+-------------------------------------------
+PASO 3: Ir a la carpeta del proyecto
+-------------------------------------------
+cd C:\Users\crist\OneDrive\Escritorio\pos-web-professional
+
+
+-------------------------------------------
+PASO 4: Inicializar Git
+-------------------------------------------
+git init
+
+
+-------------------------------------------
+PASO 5: Agregar todos los archivos
+-------------------------------------------
+git add .
+
+
+-------------------------------------------
+PASO 6: Ver qué se va a subir
+-------------------------------------------
+git status
+
+
+-------------------------------------------
+PASO 7: Crear el primer commit
+-------------------------------------------
+git commit -m "Initial commit - Wilson POS System"
+
+
+-------------------------------------------
+PASO 8: Crear repositorio en GitHub
+-------------------------------------------
+1. Ir a: https://github.com/new
+2. Nombre: wilson-pos-system
+3. NO marcar nada (sin README, sin .gitignore)
+4. Crear repositorio
+5. COPIAR la URL que aparece
+
+
+-------------------------------------------
+PASO 9: Conectar con GitHub
+-------------------------------------------
+git remote add origin https://github.com/TU-USUARIO/wilson-pos-system.git
+
+⚠️ Cambiar "TU-USUARIO" por tu usuario real
+
+
+-------------------------------------------
+PASO 10: Cambiar a rama main
+-------------------------------------------
+git branch -M main
+
+
+-------------------------------------------
+PASO 11: Subir a GitHub
+-------------------------------------------
+git push -u origin main
+
+Si pide contraseña:
+- Usuario: Tu usuario de GitHub
+- Contraseña: Personal Access Token (NO tu contraseña)
+
+
+-------------------------------------------
+🔑 Crear Token (si pide contraseña):
+-------------------------------------------
+1. Ir a: https://github.com/settings/tokens
+2. "Generate new token (classic)"
+3. Marcar: ✅ repo
+4. Copiar el token
+5. Usar el token como contraseña
+
+
+-------------------------------------------
+✅ VERIFICAR
+-------------------------------------------
+Ir a: https://github.com/TU-USUARIO/wilson-pos-system
+
+Debe aparecer:
+✅ backend/
+✅ frontend/
+✅ install.bat
+✅ start-dev.bat
+✅ README.md
+
+NO debe aparecer:
+❌ node_modules/
+❌ .next/
+❌ *.db
+
+
+-------------------------------------------
+🔄 ACTUALIZAR (futuro):
+-------------------------------------------
+git add .
+git commit -m "Descripción de cambios"
+git push
+
+
+-------------------------------------------
+📥 CLONAR EN OTRA PC:
+-------------------------------------------
+git clone https://github.com/TU-USUARIO/wilson-pos-system.git
+cd wilson-pos-system
+install.bat
+start-dev.bat
+
+
+===========================================
+   🎉 ¡LISTO!
+===========================================

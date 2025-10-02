@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, Building2, DollarSign, Edit, Trash2, Eye } from 'lucide-react';
+import { Settings, Save, Building2, DollarSign, Edit, Trash2, Eye, Car, Truck, Bike } from 'lucide-react';
 import { getDualDB, BusinessConfig } from '../lib/dualDatabase';
+import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
+import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 import DateRangeFilter, { DateRange } from './DateRangeFilter';
 import { useHistoryData } from '../hooks/useHistoryData';
 
@@ -16,6 +18,9 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
   const [config, setConfig] = useState<BusinessConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  
+  // Estado para tipos de vehículos personalizados
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeConfig[]>([]);
 
   // Estado de conexión simplificado (siempre local)
   const [connectionStatus] = useState({
@@ -42,7 +47,69 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
 
   useEffect(() => {
     loadConfiguration();
+    loadVehicleTypes();
   }, []);
+  
+  // Escuchar eventos de cambios en tipos de vehículos
+  useEffect(() => {
+    const handleVehicleTypeChange = () => {
+      console.log('📢 Evento de cambio de tipo de vehículo recibido en configuraciones, recargando...');
+      loadVehicleTypes();
+    };
+
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_ADDED, handleVehicleTypeChange);
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_UPDATED, handleVehicleTypeChange);
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_DELETED, handleVehicleTypeChange);
+
+    return () => {
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_ADDED, handleVehicleTypeChange);
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_UPDATED, handleVehicleTypeChange);
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_DELETED, handleVehicleTypeChange);
+    };
+  }, []);
+
+  const loadVehicleTypes = async () => {
+    try {
+      const localDB = getLocalDB();
+      const types = await localDB.getVehicleTypes();
+      setVehicleTypes(types);
+      console.log('✅ Tipos de vehículos personalizados cargados en configuraciones:', types.length);
+    } catch (error) {
+      console.error('Error cargando tipos de vehículos:', error);
+    }
+  };
+  
+  const updateVehicleTypeRate = async (vehicleTypeId: string, newRate: number) => {
+    try {
+      const localDB = getLocalDB();
+      await localDB.updateVehicleType(vehicleTypeId, { tarifa: newRate });
+      await loadVehicleTypes();
+      appEvents.emit(APP_EVENTS.VEHICLE_TYPE_UPDATED, { id: vehicleTypeId, tarifa: newRate });
+      setMessage('✅ Tarifa actualizada correctamente');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error actualizando tarifa:', error);
+      setMessage('❌ Error al actualizar la tarifa');
+    }
+  };
+  
+  const deleteVehicleType = async (vehicleTypeId: string) => {
+    if (!confirm('¿Está seguro de eliminar este tipo de vehículo personalizado?')) {
+      return;
+    }
+
+    try {
+      const localDB = getLocalDB();
+      await localDB.deleteVehicleType(vehicleTypeId);
+      await loadVehicleTypes();
+      appEvents.emit(APP_EVENTS.VEHICLE_TYPE_DELETED, { id: vehicleTypeId });
+      setMessage('✅ Tipo de vehículo eliminado');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error eliminando tipo de vehículo:', error);
+      setMessage('❌ Error al eliminar: ' + (error as Error).message);
+    }
+  };
 
   const loadConfiguration = async () => {
     setLoading(true);
@@ -64,6 +131,7 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
           truckParkingRate: 4000,
           carwashEnabled: true,
           parkingEnabled: true,
+          vehicleTypes: [], // Inicializar con array vacío
           ticketData: {
             companyName: 'WILSON CARS & WASH',
             companySubtitle: 'PARKING PROFESSIONAL',
@@ -264,85 +332,163 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
           </div>
 
           {/* Configuración Detallada de Parqueadero */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden lg:col-span-2">
             <div className="bg-gradient-to-r from-blue-500 to-blue-700 p-6">
-              <div className="flex items-center space-x-3">
-                <span className="text-2xl">🚗</span>
-                <h2 className="text-xl font-bold text-white">Configuración de Parqueadero</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">🚗</span>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Configuración de Parqueadero</h2>
+                    <p className="text-blue-100 mt-1 text-sm">Tarifas y configuración del sistema de parking</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.parkingEnabled}
+                    onChange={(e) => updateConfig('parkingEnabled', e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-14 h-7 bg-blue-400/30 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-white/30"></div>
+                </label>
               </div>
-              <p className="text-blue-100 mt-2">Tarifas y configuración del sistema de parking</p>
             </div>
             
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 gap-6">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <label className="block text-sm font-semibold text-blue-800 mb-2">
-                    🚗 Tarifa Carro (por hora)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                    <input
-                      type="number"
-                      value={config.carParkingRate}
-                      onChange={(e) => updateConfig('carParkingRate', parseInt(e.target.value))}
-                      className="w-full pl-8 pr-4 py-3 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                      placeholder="3000"
-                    />
-                  </div>
-                  <p className="text-xs text-blue-600 mt-2">Precio por hora para vehículos tipo carro</p>
-                </div>
-
-                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                  <label className="block text-sm font-semibold text-orange-800 mb-2">
-                    🏍️ Tarifa Moto (por hora)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                    <input
-                      type="number"
-                      value={config.motorcycleParkingRate}
-                      onChange={(e) => updateConfig('motorcycleParkingRate', parseInt(e.target.value))}
-                      className="w-full pl-8 pr-4 py-3 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                      placeholder="2000"
-                    />
-                  </div>
-                  <p className="text-xs text-orange-600 mt-2">Precio por hora para motocicletas</p>
-                </div>
-
-                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                  <label className="block text-sm font-semibold text-purple-800 mb-2">
-                    🚛 Tarifa Camión (por hora)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                    <input
-                      type="number"
-                      value={config.truckParkingRate}
-                      onChange={(e) => updateConfig('truckParkingRate', parseInt(e.target.value))}
-                      className="w-full pl-8 pr-4 py-3 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                      placeholder="4000"
-                    />
-                  </div>
-                  <p className="text-xs text-purple-600 mt-2">Precio por hora para camiones y vehículos grandes</p>
-                </div>
-
-                {/* Configuraciones adicionales del parqueadero */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <h4 className="font-semibold text-gray-800 mb-3">⚙️ Configuraciones Adicionales</h4>
-                  <div className="space-y-3">
-                    <label className="flex items-center cursor-pointer">
+            <div className="p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Car className="w-5 h-5 text-blue-600" />
+                  Tarifas Predeterminadas
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-all">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <div className="p-2 bg-blue-500 rounded-lg">
+                        <Car className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-sm font-bold text-blue-900">Carro</span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600 font-bold">$</span>
                       <input
-                        type="checkbox"
-                        checked={config.parkingEnabled}
-                        onChange={(e) => updateConfig('parkingEnabled', e.target.checked)}
-                        className="w-4 h-4 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500 mr-3"
+                        type="number"
+                        value={config.carParkingRate}
+                        onChange={(e) => updateConfig('carParkingRate', parseInt(e.target.value))}
+                        className="w-full pl-8 pr-4 py-3 border-2 border-blue-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-lg font-semibold text-gray-800"
+                        placeholder="3000"
                       />
-                      <span className="text-sm font-medium text-gray-700">Sistema de Parqueadero Activo</span>
-                    </label>
-                    <p className="text-xs text-gray-500 ml-7">Habilita o deshabilita el módulo de parqueadero</p>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-2">Por hora</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border-2 border-orange-200 hover:border-orange-400 transition-all">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <div className="p-2 bg-orange-500 rounded-lg">
+                        <Bike className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-sm font-bold text-orange-900">Moto</span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-orange-600 font-bold">$</span>
+                      <input
+                        type="number"
+                        value={config.motorcycleParkingRate}
+                        onChange={(e) => updateConfig('motorcycleParkingRate', parseInt(e.target.value))}
+                        className="w-full pl-8 pr-4 py-3 border-2 border-orange-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-lg font-semibold text-gray-800"
+                        placeholder="2000"
+                      />
+                    </div>
+                    <p className="text-xs text-orange-600 mt-2">Por hora</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-all">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <div className="p-2 bg-purple-500 rounded-lg">
+                        <Truck className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-sm font-bold text-purple-900">Camión</span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-600 font-bold">$</span>
+                      <input
+                        type="number"
+                        value={config.truckParkingRate}
+                        onChange={(e) => updateConfig('truckParkingRate', parseInt(e.target.value))}
+                        className="w-full pl-8 pr-4 py-3 border-2 border-purple-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-lg font-semibold text-gray-800"
+                        placeholder="4000"
+                      />
+                    </div>
+                    <p className="text-xs text-purple-600 mt-2">Por hora</p>
                   </div>
                 </div>
               </div>
+
+              {/* Tipos de vehículos personalizados */}
+              {vehicleTypes.length > 0 && (
+                <div className="mt-6 pt-6 border-t-2 border-gray-200">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-teal-600" />
+                    Tipos Personalizados
+                    <span className="text-sm font-normal text-gray-500">({vehicleTypes.length})</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {vehicleTypes.map((vehicleType, index) => {
+                      const colors = [
+                        { gradient: 'from-teal-50 to-teal-100', border: 'border-teal-200 hover:border-teal-400', iconBg: 'bg-teal-500', text: 'text-teal-900', inputBorder: 'border-teal-300', ring: 'focus:ring-teal-500', dollarSign: 'text-teal-600' },
+                        { gradient: 'from-pink-50 to-pink-100', border: 'border-pink-200 hover:border-pink-400', iconBg: 'bg-pink-500', text: 'text-pink-900', inputBorder: 'border-pink-300', ring: 'focus:ring-pink-500', dollarSign: 'text-pink-600' },
+                        { gradient: 'from-indigo-50 to-indigo-100', border: 'border-indigo-200 hover:border-indigo-400', iconBg: 'bg-indigo-500', text: 'text-indigo-900', inputBorder: 'border-indigo-300', ring: 'focus:ring-indigo-500', dollarSign: 'text-indigo-600' },
+                        { gradient: 'from-amber-50 to-amber-100', border: 'border-amber-200 hover:border-amber-400', iconBg: 'bg-amber-500', text: 'text-amber-900', inputBorder: 'border-amber-300', ring: 'focus:ring-amber-500', dollarSign: 'text-amber-600' },
+                        { gradient: 'from-rose-50 to-rose-100', border: 'border-rose-200 hover:border-rose-400', iconBg: 'bg-rose-500', text: 'text-rose-900', inputBorder: 'border-rose-300', ring: 'focus:ring-rose-500', dollarSign: 'text-rose-600' },
+                      ];
+                      const colorScheme = colors[index % colors.length];
+
+                      return (
+                        <div key={vehicleType.id} className={`bg-gradient-to-br ${colorScheme.gradient} p-4 rounded-xl border-2 ${colorScheme.border} transition-all relative group`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <div className={`p-2 ${colorScheme.iconBg} rounded-lg`}>
+                                <Truck className={`h-4 w-4 text-white`} />
+                              </div>
+                              <span className={`text-sm font-bold ${colorScheme.text}`}>
+                                {vehicleType.name}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteVehicleType(vehicleType.id)}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 text-red-500 hover:bg-red-100 rounded-lg transition-all duration-200 shadow-sm"
+                              title="Eliminar tipo personalizado"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          
+                          <div className="relative">
+                            <span className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${colorScheme.dollarSign} font-bold`}>$</span>
+                            <input
+                              type="number"
+                              value={vehicleType.tarifa}
+                              onChange={(e) => {
+                                const newRate = parseInt(e.target.value) || 0;
+                                if (newRate !== vehicleType.tarifa) {
+                                  updateVehicleTypeRate(vehicleType.id, newRate);
+                                }
+                              }}
+                              className={`w-full pl-8 pr-4 py-3 border-2 ${colorScheme.inputBorder} rounded-xl focus:outline-none focus:ring-2 ${colorScheme.ring} bg-white text-lg font-semibold text-gray-800`}
+                              placeholder="2000"
+                            />
+                          </div>
+                          <p className="text-xs mt-2 opacity-75">Por hora</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-700">
+                      💡 <strong>Tip:</strong> Los tipos personalizados se crean en la sección "Gestión de Parqueadero" y aparecen automáticamente aquí.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -402,134 +548,169 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
             </div>
           </div>
 
-          {/* Configuración de datos del ticket */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-green-500 to-teal-600 p-6">
+          {/* Configuración Empresarial y de Tickets */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden lg:col-span-2">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6">
               <div className="flex items-center space-x-3">
-                <span className="text-2xl">🎫</span>
-                <h2 className="text-xl font-bold text-white">Configuración de Tickets</h2>
+                <span className="text-2xl">�</span>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Configuración Empresarial</h2>
+                  <p className="text-green-100 mt-1 text-sm">Información de la empresa y personalización de tickets</p>
+                </div>
               </div>
-              <p className="text-green-100 mt-2">Personaliza la información que aparece en los tickets impresos</p>
             </div>
             
-            <div className="p-6 space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Nombre de la Empresa
-                  </label>
-                  <input
-                    type="text"
-                    value={config.ticketData?.companyName || ''}
-                    onChange={(e) => updateTicketData('companyName', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="WILSON CARS & WASH"
-                  />
+            <div className="p-6">
+              {/* Sección 1: Identificación de la Empresa */}
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-green-200">
+                  <div className="p-2 bg-green-500 rounded-lg">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800">Identificación de la Empresa</h3>
                 </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
+                    <label className="block text-xs font-bold text-green-800 uppercase tracking-wide mb-2">
+                      🏢 Nombre de la Empresa
+                    </label>
+                    <input
+                      type="text"
+                      value={config.ticketData?.companyName || ''}
+                      onChange={(e) => updateTicketData('companyName', e.target.value)}
+                      className="w-full px-4 py-2.5 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-800 font-semibold"
+                      placeholder="WILSON CARS & WASH"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Subtítulo de la Empresa
-                  </label>
-                  <input
-                    type="text"
-                    value={config.ticketData?.companySubtitle || ''}
-                    onChange={(e) => updateTicketData('companySubtitle', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="PARKING PROFESSIONAL"
-                  />
-                </div>
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
+                    <label className="block text-xs font-bold text-green-800 uppercase tracking-wide mb-2">
+                      📝 Subtítulo / Eslogan
+                    </label>
+                    <input
+                      type="text"
+                      value={config.ticketData?.companySubtitle || ''}
+                      onChange={(e) => updateTicketData('companySubtitle', e.target.value)}
+                      className="w-full px-4 py-2.5 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-800"
+                      placeholder="PARKING PROFESSIONAL"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    NIT o Documento
-                  </label>
-                  <input
-                    type="text"
-                    value={config.ticketData?.nit || ''}
-                    onChange={(e) => updateTicketData('nit', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="19.475.534-7"
-                  />
-                </div>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">
+                      🆔 NIT o Documento
+                    </label>
+                    <input
+                      type="text"
+                      value={config.ticketData?.nit || ''}
+                      onChange={(e) => updateTicketData('nit', e.target.value)}
+                      className="w-full px-4 py-2.5 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800 font-mono"
+                      placeholder="19.475.534-7"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Teléfono
-                  </label>
-                  <input
-                    type="text"
-                    value={config.ticketData?.phone || ''}
-                    onChange={(e) => updateTicketData('phone', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="+57 (1) 234-5678"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={config.ticketData?.email || ''}
-                    onChange={(e) => updateTicketData('email', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="info@wilsoncarwash.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Sitio Web
-                  </label>
-                  <input
-                    type="text"
-                    value={config.ticketData?.website || ''}
-                    onChange={(e) => updateTicketData('website', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                    placeholder="www.wilsoncarwash.com"
-                  />
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">
+                      📍 Dirección Completa
+                    </label>
+                    <input
+                      type="text"
+                      value={config.ticketData?.address || ''}
+                      onChange={(e) => updateTicketData('address', e.target.value)}
+                      className="w-full px-4 py-2.5 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
+                      placeholder="Calle 123 #45-67, Bogotá D.C."
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Dirección Completa
-                </label>
-                <input
-                  type="text"
-                  value={config.ticketData?.address || ''}
-                  onChange={(e) => updateTicketData('address', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Calle 123 #45-67, Bogotá D.C."
-                />
+              {/* Sección 2: Información de Contacto */}
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-purple-200">
+                  <div className="p-2 bg-purple-500 rounded-lg">
+                    <span className="text-white text-xl">📞</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800">Información de Contacto</h3>
+                </div>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
+                    <label className="block text-xs font-bold text-purple-800 uppercase tracking-wide mb-2">
+                      📞 Teléfono
+                    </label>
+                    <input
+                      type="text"
+                      value={config.ticketData?.phone || ''}
+                      onChange={(e) => updateTicketData('phone', e.target.value)}
+                      className="w-full px-4 py-2.5 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-800"
+                      placeholder="+57 (1) 234-5678"
+                    />
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
+                    <label className="block text-xs font-bold text-purple-800 uppercase tracking-wide mb-2">
+                      ✉️ Email
+                    </label>
+                    <input
+                      type="email"
+                      value={config.ticketData?.email || ''}
+                      onChange={(e) => updateTicketData('email', e.target.value)}
+                      className="w-full px-4 py-2.5 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-800"
+                      placeholder="info@wilsoncarwash.com"
+                    />
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
+                    <label className="block text-xs font-bold text-purple-800 uppercase tracking-wide mb-2">
+                      🌐 Sitio Web
+                    </label>
+                    <input
+                      type="text"
+                      value={config.ticketData?.website || ''}
+                      onChange={(e) => updateTicketData('website', e.target.value)}
+                      className="w-full px-4 py-2.5 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-800"
+                      placeholder="www.wilsoncarwash.com"
+                    />
+                  </div>
+                </div>
               </div>
 
+              {/* Sección 3: Mensajes del Ticket */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Mensaje de Pie de Página
-                </label>
-                <input
-                  type="text"
-                  value={config.ticketData?.footerMessage || ''}
-                  onChange={(e) => updateTicketData('footerMessage', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                  placeholder="¡Gracias por confiar en nosotros!"
-                />
-              </div>
+                <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-amber-200">
+                  <div className="p-2 bg-amber-500 rounded-lg">
+                    <span className="text-white text-xl">💬</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800">Mensajes Personalizados</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-4 rounded-xl border border-amber-200">
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wide mb-2">
+                      🎉 Mensaje de Despedida
+                    </label>
+                    <input
+                      type="text"
+                      value={config.ticketData?.footerMessage || ''}
+                      onChange={(e) => updateTicketData('footerMessage', e.target.value)}
+                      className="w-full px-4 py-2.5 border-2 border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-gray-800"
+                      placeholder="¡Gracias por confiar en nosotros!"
+                    />
+                    <p className="text-xs text-amber-700 mt-2">Aparece al final del ticket</p>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Información Adicional
-                </label>
-                <textarea
-                  value={config.ticketData?.footerInfo || ''}
-                  onChange={(e) => updateTicketData('footerInfo', e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Horario: 24/7 | Servicio completo de parqueadero"
-                />
+                  <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-4 rounded-xl border border-amber-200">
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wide mb-2">
+                      ℹ️ Información Adicional
+                    </label>
+                    <textarea
+                      value={config.ticketData?.footerInfo || ''}
+                      onChange={(e) => updateTicketData('footerInfo', e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-2.5 border-2 border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-gray-800 resize-none"
+                      placeholder="Horario: 24/7 | Servicio completo de parqueadero"
+                    />
+                    <p className="text-xs text-amber-700 mt-2">Horarios, avisos o información relevante</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

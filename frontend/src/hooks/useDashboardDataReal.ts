@@ -115,11 +115,21 @@ export const useDashboardDataReal = () => {
       const parkingRevenue = await calculateTodayRevenue();
 
       // Calcular métricas del lavadero
+      const today = new Date().toISOString().split('T')[0];
       const activeWashes = carwashTransactions?.filter((o: any) => o.status === 'in_progress')?.length || 0;
       const completedServices = carwashTransactions?.filter((o: any) => o.status === 'completed')?.length || 0;
+      
+      // Calcular ingresos del lavadero SOLO DEL DÍA DE HOY
       const carwashRevenue = carwashTransactions
-        ?.filter((o: any) => o.status === 'completed')
-        ?.reduce((total: number, o: any) => total + (o.totalAmount || 0), 0) || 0;
+        ?.filter((o: any) => {
+          const isCompleted = o.status === 'completed';
+          const transactionDate = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : null;
+          const isToday = transactionDate === today;
+          return isCompleted && isToday;
+        })
+        ?.reduce((total: number, o: any) => total + (o.basePrice || 0), 0) || 0;
+      
+      console.log('💰 Ingresos de lavadero HOY:', carwashRevenue);
 
       // Distribución de vehículos
       const vehicleTypes = parkingHistory?.reduce((acc: any, v: any) => {
@@ -136,7 +146,7 @@ export const useDashboardDataReal = () => {
 
       // Distribución de servicios de lavadero
       const serviceTypes = carwashTransactions?.reduce((acc: any, o: any) => {
-        const service = o.serviceType || 'Básico';
+        const service = o.serviceName || 'Básico';
         acc[service] = (acc[service] || 0) + 1;
         return acc;
       }, {}) || {};
@@ -170,12 +180,12 @@ export const useDashboardDataReal = () => {
         ...(carwashTransactions?.slice(-5).map((o: any) => ({
           id: `carwash-${o.id}`,
           type: 'carwash' as const,
-          description: `${o.serviceType || 'Lavado'} - ${o.licensePlate}`,
+          description: `${o.serviceName || 'Lavado'} - ${o.placa}`,
           time: formatTimeAgo(o.createdAt),
-          amount: o.status === 'completed' ? o.totalAmount : undefined,
+          amount: o.status === 'completed' ? o.basePrice : undefined,
           status: o.status === 'completed' ? 'completed' as const : 
                   o.status === 'in_progress' ? 'pending' as const : 'cancelled' as const,
-          user: o.licensePlate
+          user: o.placa
         })) || [])
       ].sort((a, b) => {
         // Ordenar por fecha más reciente primero

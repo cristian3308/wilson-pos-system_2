@@ -10,6 +10,10 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-fira-code)', 'ui-monospace', 'monospace'],
+      },
       colors: {
         // Primary brand colors
         primary: {

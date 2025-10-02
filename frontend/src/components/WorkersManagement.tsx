@@ -16,10 +16,12 @@ import {
   User,
   Percent,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  BarChart3
 } from 'lucide-react';
 import { getDualDB, Worker } from '@/lib/dualDatabase';
 import toast from 'react-hot-toast';
+import WorkerEarningsReport from './WorkerEarningsReport';
 
 interface WorkerFormData {
   name: string;
@@ -37,6 +39,7 @@ const WorkersManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
   const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? navigator.onLine : true);
+  const [showEarningsReport, setShowEarningsReport] = useState(false);
   const [formData, setFormData] = useState<WorkerFormData>({
     name: '',
     phone: '',
@@ -100,12 +103,23 @@ const WorkersManagement: React.FC = () => {
       if (editingWorker) {
         // Actualizar trabajador
         const dualDB = getDualDB();
-        await dualDB.updateWorker({ ...formData, id: editingWorker.id });
+        await dualDB.updateWorker({ 
+          ...formData, 
+          id: editingWorker.id,
+          createdAt: editingWorker.createdAt,
+          updatedAt: new Date()
+        });
         toast.success('Trabajador actualizado correctamente');
       } else {
         // Agregar nuevo trabajador
         const dualDB = getDualDB();
-        await dualDB.saveWorker(formData);
+        const newWorker = {
+          ...formData,
+          id: `worker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        await dualDB.saveWorker(newWorker);
         toast.success(`Trabajador agregado ${isOnline ? '' : '(sin conexión - se sincronizará)'}`);
       }
 
@@ -175,6 +189,11 @@ const WorkersManagement: React.FC = () => {
     );
   }
 
+  // Si estamos viendo el reporte de ganancias, mostrar ese componente
+  if (showEarningsReport) {
+    return <WorkerEarningsReport />;
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -195,6 +214,14 @@ const WorkersManagement: React.FC = () => {
             {isOnline ? 'En línea' : 'Sin conexión'}
           </div>
           
+          <button
+            onClick={() => setShowEarningsReport(!showEarningsReport)}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-lg hover:shadow-xl"
+          >
+            <BarChart3 className="w-4 h-4" />
+            {showEarningsReport ? 'Ver Trabajadores' : 'Ver Reportes'}
+          </button>
+
           <button
             onClick={() => {
               setShowAddModal(true);

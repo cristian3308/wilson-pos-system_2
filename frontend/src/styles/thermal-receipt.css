@@ -1,0 +1,290 @@
+/* Estilos para impresión de recibos térmicos POS 80mm */
+
+@media print {
+  @page {
+    size: 80mm auto; /* Ancho de 80mm, altura automática */
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Ocultar todo excepto el recibo */
+  body * {
+    visibility: hidden;
+  }
+
+  #thermal-receipt,
+  #thermal-receipt * {
+    visibility: visible;
+  }
+
+  #thermal-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    max-width: 80mm;
+  }
+
+  /* Ocultar elementos de navegación y controles */
+  nav,
+  header,
+  footer,
+  button,
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Estilos base del recibo térmico */
+.thermal-receipt {
+  width: 80mm;
+  max-width: 80mm;
+  margin: 0 auto;
+  padding: 5mm;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10pt;
+  line-height: 1.4;
+  color: #000;
+  background: white;
+  box-sizing: border-box;
+}
+
+.thermal-receipt * {
+  box-sizing: border-box;
+}
+
+/* Header del recibo */
+.receipt-header {
+  text-align: center;
+  margin-bottom: 5mm;
+  border-bottom: 2px dashed #000;
+  padding-bottom: 3mm;
+}
+
+.receipt-title {
+  font-size: 16pt;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin-bottom: 2mm;
+}
+
+.receipt-business-name {
+  font-size: 14pt;
+  font-weight: bold;
+  margin-bottom: 1mm;
+}
+
+.receipt-subtitle {
+  font-size: 9pt;
+  margin-bottom: 1mm;
+}
+
+/* Información general */
+.receipt-info {
+  margin-bottom: 4mm;
+  font-size: 9pt;
+}
+
+.receipt-info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1mm;
+}
+
+.receipt-info-label {
+  font-weight: bold;
+}
+
+/* Separador */
+.receipt-divider {
+  border-bottom: 1px dashed #000;
+  margin: 3mm 0;
+}
+
+.receipt-divider-double {
+  border-bottom: 2px solid #000;
+  margin: 3mm 0;
+}
+
+/* Sección de items */
+.receipt-section {
+  margin-bottom: 4mm;
+}
+
+.receipt-section-title {
+  font-size: 11pt;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 2mm;
+  text-transform: uppercase;
+}
+
+.receipt-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5mm;
+  font-size: 9pt;
+}
+
+.receipt-item-name {
+  flex: 1;
+  padding-right: 2mm;
+}
+
+.receipt-item-value {
+  text-align: right;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* Totales */
+.receipt-totals {
+  margin-top: 4mm;
+  padding-top: 3mm;
+  border-top: 2px dashed #000;
+}
+
+.receipt-total-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2mm;
+  font-size: 10pt;
+}
+
+.receipt-total-row.grand-total {
+  font-size: 14pt;
+  font-weight: bold;
+  margin-top: 2mm;
+  padding-top: 2mm;
+  border-top: 2px solid #000;
+}
+
+.receipt-total-label {
+  font-weight: bold;
+}
+
+.receipt-total-value {
+  text-align: right;
+  font-weight: bold;
+}
+
+/* Destacados */
+.receipt-highlight {
+  background: #f0f0f0;
+  padding: 2mm;
+  margin: 3mm 0;
+  border: 1px solid #ccc;
+  border-radius: 2mm;
+  text-align: center;
+}
+
+.receipt-highlight-title {
+  font-size: 10pt;
+  font-weight: bold;
+  margin-bottom: 1mm;
+}
+
+.receipt-highlight-value {
+  font-size: 16pt;
+  font-weight: bold;
+}
+
+/* Footer */
+.receipt-footer {
+  text-align: center;
+  margin-top: 5mm;
+  padding-top: 3mm;
+  border-top: 2px dashed #000;
+  font-size: 9pt;
+}
+
+.receipt-footer-message {
+  margin-bottom: 2mm;
+  font-weight: bold;
+}
+
+.receipt-footer-info {
+  font-size: 8pt;
+  margin-bottom: 1mm;
+}
+
+/* Código de barras */
+.receipt-barcode {
+  text-align: center;
+  margin: 4mm 0;
+}
+
+.receipt-barcode-img {
+  width: 60mm;
+  height: 15mm;
+  margin: 2mm auto;
+}
+
+.receipt-barcode-text {
+  font-size: 8pt;
+  letter-spacing: 2px;
+  margin-top: 1mm;
+}
+
+/* Tabla de detalles */
+.receipt-table {
+  width: 100%;
+  font-size: 9pt;
+  margin: 2mm 0;
+}
+
+.receipt-table-header {
+  font-weight: bold;
+  border-bottom: 1px solid #000;
+  padding-bottom: 1mm;
+  margin-bottom: 2mm;
+}
+
+.receipt-table-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5mm;
+}
+
+.receipt-table-col {
+  flex: 1;
+  padding: 0 1mm;
+}
+
+.receipt-table-col.align-left {
+  text-align: left;
+}
+
+.receipt-table-col.align-center {
+  text-align: center;
+}
+
+.receipt-table-col.align-right {
+  text-align: right;
+}
+
+/* Estilos para vista previa en pantalla */
+@media screen {
+  .thermal-receipt {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    margin: 20px auto;
+  }
+}
+
+/* Optimización para impresión térmica */
+@media print {
+  .thermal-receipt {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  
+  .receipt-highlight {
+    background: none !important;
+    border: 1px solid #000 !important;
+  }
+}

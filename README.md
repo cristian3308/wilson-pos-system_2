@@ -1,52 +1,312 @@
-# 🚗 POS Web Professional - Sistema de Parqueadero y Lavadero# 🚗💎 Wilson POS System - Sistema Profesional de Parqueadero y Lavadero# 🚗 POS Web Professional - Sistema de Parqueadero y Lavadero
+# 🚗 Wilson POS System - Sistema Profesional de Parqueadero y Lavadero
 
-
-
+![Wilson POS](https://img.shields.io/badge/Wilson%20POS-v1.0.0-blue.svg)
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
-
 ![React](https://img.shields.io/badge/React-18+-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)
 
-![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)![Wilson POS](https://img.shields.io/badge/Wilson%20POS-v1.0.0-blue.svg)## 📋 Descripción
+---
 
+## 📋 Descripción
 
+**Sistema integral de gestión para parqueaderos y lavaderos de vehículos con interfaz moderna, base de datos local y funcionalidades avanzadas.**
 
-## 📋 Descripción![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)
+Desarrollado con tecnologías web modernas, arquitectura cliente-servidor, diseño responsive y operación en tiempo real.
 
+---
 
-
-Sistema profesional de gestión de parqueadero y lavadero desarrollado con tecnologías web modernas. Interfaz responsive, base de datos local y funcionalidades en tiempo real.![React](https://img.shields.io/badge/React-18+-blue.svg)Sistema profesional de gestión de parqueadero y lavadero desarrollado con tecnologías web modernas. Diseñado con arquitectura de microservicios, responsive design y funcionalidades en tiempo real.
-
-
-
-## 🏗️ Estructura del Proyecto![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)
-
-
-
-```![Electron](https://img.shields.io/badge/Electron-27+-purple.svg)## 🏗️ Arquitectura del Proyecto
-
-pos-web-professional/
-
-├── 📱 frontend/                 # React + Next.js + TypeScript + Tailwind
-
-├── 🔧 backend/                  # Node.js + Express + SQLite
-
-└── 📄 README.md                 # Este archivo**Sistema integral de gestión para parqueaderos y lavaderos de vehículos con interfaz moderna, base de datos local y funcionalidades avanzadas.**```
+## 🏗️ Arquitectura del Proyecto
 
 ```
-
 pos-web-professional/
+├── 📱 frontend/                 # React + Next.js + TypeScript + Tailwind
+├── 🔧 backend/                  # Node.js + Express + SQLite
+├── 🚀 install.bat               # Instalación automática
+├── 🎯 start-dev.bat             # Inicio automático con Chrome
+├── 📘 SETUP.md                  # Guía de instalación completa
+├── 📗 GITHUB-GUIDE.md           # Guía para subir a GitHub
+└── 📄 README.md                 # Este archivo
+```
+
+---
 
 ## 🌟 Características Principales
 
-## 🌟 Características Principales├── 📱 frontend/                 # React + TypeScript + Tailwind
-
 ### 🚗 **Sistema de Parqueadero**
-
-- ✅ Ingreso y egreso automatizado de vehículos├── 🔧 backend/                  # Node.js + Express + MongoDB
-
+- ✅ Ingreso y egreso automatizado de vehículos
 - ✅ Cálculo automático de tiempo y tarifas
+- ✅ Control de espacios disponibles
+- ✅ **Tipos de vehículos personalizados** (Carro, Moto, Camión, + Custom)
+- ✅ Historial completo de transacciones
 
-- ✅ Control de espacios disponibles### 🚗 **Sistema de Parqueadero**├── 🐳 docker/                   # Configuración Docker
+### 🧼 **Sistema de Lavadero**
+- ✅ Gestión de servicios de lavado
+- ✅ Control de vehículos en proceso
+- ✅ Facturación integrada
+
+### 📊 **Dashboard y Reportes**
+- ✅ Estadísticas en tiempo real
+- ✅ Gráficos de ingresos diarios/mensuales
+- ✅ Reportes exportables
+
+### 🖨️ **Sistema de Impresión**
+- ✅ Tickets térmicos automáticos
+- ✅ Formato profesional con logo
+- ✅ Soporte para impresoras térmicas 80mm
+
+### ⚙️ **Configuración**
+- ✅ Panel de administración completo
+- ✅ Gestión de tarifas
+- ✅ Tipos de vehículos personalizados
+- ✅ Configuración de negocio
+
+---
+
+## 🚀 Instalación Rápida (Windows)
+
+### **Opción 1: Instalación Automática** ⚡
+
+1. **Clonar o descargar el proyecto**
+   ```powershell
+   git clone https://github.com/TU-USUARIO/wilson-pos-system.git
+   cd wilson-pos-system
+   ```
+
+2. **Instalar dependencias** (ejecutar como Administrador)
+   ```powershell
+   .\install.bat
+   ```
+
+3. **Iniciar el sistema**
+   ```powershell
+   .\start-dev.bat
+   ```
+   
+   ✅ Se abrirá automáticamente Chrome en `http://localhost:3000`
+
+---
+
+### **Opción 2: Instalación Manual** 🔧
+
+#### **Requisitos**
+- Node.js 18+ → [Descargar](https://nodejs.org/)
+- npm 9+ (incluido con Node.js)
+- Windows 10/11
+
+#### **Pasos**
+
+1. **Instalar Backend**
+   ```powershell
+   cd backend
+   npm install
+   ```
+
+2. **Instalar Frontend**
+   ```powershell
+   cd ../frontend
+   npm install
+   ```
+
+3. **Ejecutar Backend** (en una terminal)
+   ```powershell
+   cd backend
+   npm run dev
+   ```
+
+4. **Ejecutar Frontend** (en otra terminal)
+   ```powershell
+   cd frontend
+   npm run dev
+   ```
+
+5. **Abrir en el navegador**
+   ```
+   http://localhost:3000
+   ```
+
+---
+
+## 📦 Tecnologías Utilizadas
+
+### **Frontend**
+- ⚛️ **React 18** - Biblioteca UI
+- 🔷 **Next.js 14** - Framework React con SSR
+- 📘 **TypeScript 5** - Tipado estático
+- 🎨 **Tailwind CSS** - Estilos utility-first
+- 🌀 **Framer Motion** - Animaciones
+- 💾 **IndexedDB** - Base de datos local del navegador
+
+### **Backend**
+- 🟢 **Node.js 18+** - Runtime JavaScript
+- 🚂 **Express** - Framework web
+- 🗄️ **SQLite** - Base de datos local
+- 📘 **TypeScript** - Tipado estático
+- 🔐 **JWT** - Autenticación
+
+---
+
+## 🎯 Uso del Sistema
+
+### **1. Iniciar el Sistema**
+```powershell
+start-dev.bat
+```
+
+### **2. Acceder al Dashboard**
+- URL: `http://localhost:3000`
+- Usuario por defecto: `admin`
+- Contraseña por defecto: `admin123`
+
+### **3. Flujo de Trabajo - Parqueadero**
+
+1. **Registrar Ingreso**
+   - Clic en "Ingresar Vehículo"
+   - Seleccionar tipo de vehículo
+   - Ingresar placa (ej: `ABC123`)
+   - Se genera ticket automáticamente
+
+2. **Registrar Salida**
+   - Buscar por placa
+   - Sistema calcula tiempo y monto
+   - Imprimir ticket de salida
+   - Registrar pago
+
+3. **Ver Estadísticas**
+   - Dashboard principal muestra:
+     - Vehículos actuales
+     - Ingresos del día
+     - Espacios disponibles
+     - Gráficos de tendencias
+
+### **4. Configuración de Tipos de Vehículos**
+
+1. Ir a **Configuración** → **Tipos de Vehículos**
+2. Clic en **"+ Agregar Tipo"**
+3. Ingresar:
+   - Nombre (ej: "Camioneta")
+   - Tarifa por hora (ej: 3000)
+   - Seleccionar icono
+4. Guardar
+
+---
+
+## 📂 Estructura de Directorios
+
+```
+frontend/
+├── src/
+│   ├── app/                    # Páginas Next.js (App Router)
+│   │   ├── page.tsx           # Dashboard principal
+│   │   ├── admin/             # Panel administración
+│   │   └── dashboard/         # Reportes
+│   ├── components/            # Componentes React
+│   │   ├── ImprovedParqueaderoManagement.tsx
+│   │   ├── CarwashManagement.tsx
+│   │   ├── PrintFallback.tsx
+│   │   └── ...
+│   ├── lib/                   # Utilidades y servicios
+│   │   ├── localDatabase.ts   # IndexedDB wrapper
+│   │   └── parkingSystem.ts   # Lógica de negocio
+│   └── types/                 # Definiciones TypeScript
+
+backend/
+├── src/
+│   ├── server.ts              # Punto de entrada
+│   ├── controllers/           # Controladores API
+│   ├── models/                # Modelos de datos
+│   ├── routes/                # Rutas Express
+│   ├── services/              # Lógica de negocio
+│   └── database/              # SQLite DB
+│       └── pos_system.db
+```
+
+---
+
+## 🔧 Comandos Útiles
+
+### **Backend**
+```powershell
+cd backend
+npm run dev        # Modo desarrollo (puerto 3001)
+npm run build      # Compilar TypeScript
+npm start          # Producción
+```
+
+### **Frontend**
+```powershell
+cd frontend
+npm run dev        # Modo desarrollo (puerto 3000)
+npm run build      # Build de producción
+npm start          # Servidor producción
+```
+
+---
+
+## 🐛 Solución de Problemas
+
+### **Error: "Port 3000 already in use"**
+```powershell
+# Cerrar procesos en puerto 3000
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+```
+
+### **Error: "Cannot find module"**
+```powershell
+# Reinstalar dependencias
+cd backend
+rmdir /s /q node_modules
+npm install
+
+cd ../frontend
+rmdir /s /q node_modules
+npm install
+```
+
+### **Chrome no se abre automáticamente**
+- Verificar ruta de Chrome en `start-dev.bat`
+- Abrir manualmente: `http://localhost:3000`
+
+### **Base de datos corrupta**
+```powershell
+# Eliminar y reinicializar
+cd backend/database
+del pos_system.db
+cd ..
+npm run init-db
+```
+
+---
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
+
+---
+
+## 👨‍� Autor
+
+**Wilson Cars & Wash**
+- Sistema desarrollado para gestión profesional de parqueaderos y lavaderos
+
+---
+
+## 📚 Documentación Adicional
+
+- 📘 **[SETUP.md](SETUP.md)** - Guía completa de instalación con troubleshooting
+- � **[GITHUB-GUIDE.md](GITHUB-GUIDE.md)** - Cómo subir y clonar desde GitHub
+- 📄 **[COMANDOS-GITHUB.txt](COMANDOS-GITHUB.txt)** - Comandos rápidos para Git
+
+---
+
+## 🎉 ¡Gracias por usar Wilson POS System!
+
+Si tienes problemas o sugerencias, no dudes en abrir un **Issue** en GitHub.
+
+---
+
+**Versión**: 1.0.0  
+**Última actualización**: Enero 2025
 
 - ✅ Gestión de tarifas personalizables
 

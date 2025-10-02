@@ -62,18 +62,14 @@ class ParkingSystem {
     const ticketId = this.generateUniqueId();
     const barcode = this.generateBarcode();
     
-    // Mapear el tipo de vehículo a los tipos esperados
-    const mappedVehicleType: 'car' | 'motorcycle' | 'truck' = 
-      vehicleType.toLowerCase() === 'moto' ? 'motorcycle' :
-      vehicleType.toLowerCase() === 'carro' ? 'car' :
-      vehicleType.toLowerCase() === 'camion' ? 'truck' :
-      'car'; // default
+    console.log('🔍 DEBUG parkingSystem.processEntry - vehicleType recibido:', vehicleType);
     
+    // Ya no mapeamos, usamos el tipo tal cual viene (puede ser 'car', 'motorcycle', 'truck' o un ID personalizado)
     const ticket: ParkingTicket = {
       id: ticketId,
       vehicleId: ticketId,
       placa: placa.toUpperCase(),
-      vehicleType: mappedVehicleType,
+      vehicleType: vehicleType, // ✅ Usar el valor tal cual sin mapear
       entryTime: now,
       basePrice: basePrice,
       barcode: barcode,
@@ -82,6 +78,8 @@ class ParkingSystem {
       createdAt: now,
       updatedAt: now
     };
+    
+    console.log('✅ Ticket creado con vehicleType:', ticket.vehicleType);
 
     // Guardar ticket de forma segura
     await this.saveTicketSecure(ticket);
@@ -363,8 +361,13 @@ class ParkingSystem {
       // Actualizar totales
       dailyIncome.totalAmount += ticket.totalAmount || 0;
       dailyIncome.ticketCount += 1;
-      dailyIncome.vehicleTypes[ticket.vehicleType].count += 1;
-      dailyIncome.vehicleTypes[ticket.vehicleType].amount += ticket.totalAmount || 0;
+      
+      // Solo actualizar estadísticas por tipo si es un tipo predeterminado
+      if (ticket.vehicleType === 'car' || ticket.vehicleType === 'motorcycle' || ticket.vehicleType === 'truck') {
+        dailyIncome.vehicleTypes[ticket.vehicleType as 'car' | 'motorcycle' | 'truck'].count += 1;
+        dailyIncome.vehicleTypes[ticket.vehicleType as 'car' | 'motorcycle' | 'truck'].amount += ticket.totalAmount || 0;
+      }
+      
       dailyIncome.updatedAt = new Date();
 
       // Guardar ingreso actualizado

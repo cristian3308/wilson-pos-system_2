@@ -70,6 +70,8 @@ const initialBusinessConfig = {
   truckParkingRate: 4000,
   carwashEnabled: true,
   parkingEnabled: true,
+  // Tipos de vehículos iniciales (vacío, se cargarán desde el código)
+  vehicleTypes: [],
   // Configuración de datos para tickets
   ticketData: {
     companyName: 'Parqueadero y Lavadero Local',

@@ -60,7 +60,7 @@ export interface ParkingTicket {
   id: string;
   vehicleId: string;
   placa: string;
-  vehicleType: 'car' | 'motorcycle' | 'truck';
+  vehicleType: string; // ✅ Ahora acepta cualquier string (tipos predeterminados o IDs personalizados)
   entryTime: Date;
   exitTime?: Date;
   totalMinutes?: number;
@@ -73,6 +73,16 @@ export interface ParkingTicket {
   updatedAt: Date;
 }
 
+export interface VehicleTypeConfig {
+  id: string;
+  name: string;
+  iconName: string;
+  tarifa: number;
+  isCustom: boolean;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
 export interface BusinessConfig {
   id: string;
   businessName: string;
@@ -83,6 +93,8 @@ export interface BusinessConfig {
   truckParkingRate: number;
   carwashEnabled: boolean;
   parkingEnabled: boolean;
+  // Nuevos campos para tipos de vehículos dinámicos
+  vehicleTypes: VehicleTypeConfig[];
   // Nuevos campos para configuración de tickets
   ticketData: {
     companyName: string;
@@ -242,16 +254,26 @@ class LocalDatabase {
       throw new Error(`Ticket no encontrado: ${ticketId}`);
     }
 
+    const exit = exitTime || new Date();
+    const entry = new Date(ticket.entryTime);
+    const totalMinutes = Math.max(1, Math.floor((exit.getTime() - entry.getTime()) / (1000 * 60)));
+    
+    // Calcular el monto total basado en el precio base y tiempo
+    // Si ya tiene totalAmount, usarlo, sino calcular
+    const totalAmount = ticket.totalAmount || ticket.basePrice;
+
     const updatedTicket: ParkingTicket = {
       ...ticket,
-      exitTime: exitTime || new Date(),
+      exitTime: exit,
+      totalMinutes,
+      totalAmount,
       status: 'completed',
       isPaid: true,
       updatedAt: new Date()
     };
 
     await this.updateParkingTicket(updatedTicket);
-    console.log(`✅ Ticket completado localmente: ${ticket.placa}`);
+    console.log(`✅ Ticket completado localmente: ${ticket.placa} - $${totalAmount}`);
     return updatedTicket;
   }
 
@@ -491,6 +513,136 @@ class LocalDatabase {
       console.error('❌ Error importando datos:', error);
       throw error;
     }
+  }
+
+  // === MÉTODOS PARA TIPOS DE VEHÍCULOS ===
+  async saveVehicleType(vehicleType: VehicleTypeConfig): Promise<void> {
+    await this.init();
+    
+    // Obtener configuración actual o crear una por defecto
+    let config = await this.getBusinessConfig();
+    if (!config) {
+      console.log('⚠️ No existe configuración, creando una por defecto...');
+      const defaultConfig: BusinessConfig = {
+        id: 'default-config',
+        businessName: 'Wilson Cars & Wash',
+        businessAddress: '',
+        businessPhone: '',
+        carParkingRate: 2000,
+        motorcycleParkingRate: 1500,
+        truckParkingRate: 3000,
+        carwashEnabled: true,
+        parkingEnabled: true,
+        vehicleTypes: [],
+        ticketData: {
+          companyName: 'Wilson Cars & Wash',
+          companySubtitle: 'Parqueadero y Lavadero',
+          nit: '000000000-0',
+          address: '',
+          phone: '',
+          email: '',
+          website: '',
+          footerMessage: 'Gracias por su visita',
+          footerInfo: 'Servicio 24/7'
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      await this.saveBusinessConfig(defaultConfig);
+      config = defaultConfig;
+    }
+
+    // Verificar que no exista un tipo con el mismo nombre
+    const existingTypes = config.vehicleTypes || [];
+    const isDuplicate = existingTypes.some(type => 
+      type.name.toLowerCase() === vehicleType.name.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      throw new Error('Ya existe un tipo de vehículo con este nombre');
+    }
+
+    // Agregar el nuevo tipo
+    const updatedConfig = {
+      ...config,
+      vehicleTypes: [...existingTypes, vehicleType],
+      updatedAt: new Date()
+    };
+
+    await this.saveBusinessConfig(updatedConfig);
+    console.log(`✅ Tipo de vehículo guardado: ${vehicleType.name}`);
+  }
+
+  async getVehicleTypes(): Promise<VehicleTypeConfig[]> {
+    await this.init();
+    
+    const config = await this.getBusinessConfig();
+    return config?.vehicleTypes || [];
+  }
+
+  async updateVehicleType(vehicleTypeId: string, updates: Partial<VehicleTypeConfig>): Promise<void> {
+    await this.init();
+    
+    const config = await this.getBusinessConfig();
+    if (!config) {
+      throw new Error('No se encontró configuración del negocio');
+    }
+
+    const vehicleTypes = config.vehicleTypes || [];
+    const typeIndex = vehicleTypes.findIndex(type => type.id === vehicleTypeId);
+    
+    if (typeIndex === -1) {
+      throw new Error('Tipo de vehículo no encontrado');
+    }
+
+    // Actualizar el tipo
+    vehicleTypes[typeIndex] = {
+      ...vehicleTypes[typeIndex],
+      ...updates,
+      updatedAt: new Date()
+    };
+
+    const updatedConfig = {
+      ...config,
+      vehicleTypes,
+      updatedAt: new Date()
+    };
+
+    await this.saveBusinessConfig(updatedConfig);
+    console.log(`✅ Tipo de vehículo actualizado: ${vehicleTypeId}`);
+  }
+
+  async deleteVehicleType(vehicleTypeId: string): Promise<void> {
+    await this.init();
+    
+    const config = await this.getBusinessConfig();
+    if (!config) {
+      throw new Error('No se encontró configuración del negocio');
+    }
+
+    const vehicleTypes = config.vehicleTypes || [];
+    const typeToDelete = vehicleTypes.find(type => type.id === vehicleTypeId);
+    
+    if (!typeToDelete) {
+      throw new Error('Tipo de vehículo no encontrado');
+    }
+
+    // No permitir eliminar tipos predeterminados
+    if (!typeToDelete.isCustom) {
+      throw new Error('No se pueden eliminar tipos de vehículo predeterminados');
+    }
+
+    // Filtrar el tipo a eliminar
+    const updatedVehicleTypes = vehicleTypes.filter(type => type.id !== vehicleTypeId);
+
+    const updatedConfig = {
+      ...config,
+      vehicleTypes: updatedVehicleTypes,
+      updatedAt: new Date()
+    };
+
+    await this.saveBusinessConfig(updatedConfig);
+    console.log(`✅ Tipo de vehículo eliminado: ${typeToDelete.name}`);
   }
 }
 

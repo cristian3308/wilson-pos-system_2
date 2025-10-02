@@ -27,7 +27,9 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { getDualDB, Worker, CarwashService, CarwashTransaction } from '@/lib/dualDatabase';
-import { printModernTicket } from './PrintFallback';
+import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
+import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
+import { printThermalTicket, printCarwashTicket } from './PrintFallback';
 import toast from 'react-hot-toast';
 
 interface CarwashOrderData {
@@ -44,6 +46,7 @@ interface CarwashOrderData {
 const CarwashManagement: React.FC = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [services, setServices] = useState<CarwashService[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeConfig[]>([]);
   const [activeTransactions, setActiveTransactions] = useState<CarwashTransaction[]>([]);
   const [completedTransactions, setCompletedTransactions] = useState<CarwashTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +56,7 @@ const CarwashManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
   const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? navigator.onLine : true);
+  const [filteredServices, setFilteredServices] = useState<CarwashService[]>([]);
 
   const [newOrderData, setNewOrderData] = useState<CarwashOrderData>({
     ticketId: '',
@@ -93,13 +97,55 @@ const CarwashManagement: React.FC = () => {
     return <Zap className="w-5 h-5" />;
   };
 
+  // Cargar tipos de vehículos (predeterminados + personalizados)
+  const loadVehicleTypes = async () => {
+    try {
+      const localDB = getLocalDB();
+      const customTypes = await localDB.getVehicleTypes();
+      
+      // Tipos predeterminados
+      const defaultTypes: VehicleTypeConfig[] = [
+        { id: 'car', name: 'Automóvil', iconName: 'Car', tarifa: 0, isCustom: false, createdAt: new Date() },
+        { id: 'motorcycle', name: 'Motocicleta', iconName: 'Bike', tarifa: 0, isCustom: false, createdAt: new Date() },
+        { id: 'truck', name: 'Camión', iconName: 'Truck', tarifa: 0, isCustom: false, createdAt: new Date() },
+      ];
+      
+      // Combinar tipos predeterminados con personalizados
+      const allTypes = [...defaultTypes, ...customTypes];
+      setVehicleTypes(allTypes);
+      console.log('✅ Tipos de vehículos cargados en CarwashManagement:', allTypes.length);
+      console.log('📋 Tipos personalizados:', customTypes.length);
+    } catch (error) {
+      console.error('❌ Error cargando tipos de vehículos:', error);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadVehicleTypes();
     const interval = setInterval(() => {
       updateTimers();
     }, 60000); // Update every minute
 
     return () => clearInterval(interval);
+  }, []);
+  
+  // Escuchar eventos de cambios en tipos de vehículos
+  useEffect(() => {
+    const handleVehicleTypeChange = () => {
+      console.log('📢 Evento de cambio de tipo de vehículo recibido en CarwashManagement');
+      loadVehicleTypes();
+    };
+
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_ADDED, handleVehicleTypeChange);
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_UPDATED, handleVehicleTypeChange);
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_DELETED, handleVehicleTypeChange);
+
+    return () => {
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_ADDED, handleVehicleTypeChange);
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_UPDATED, handleVehicleTypeChange);
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_DELETED, handleVehicleTypeChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -115,6 +161,13 @@ const CarwashManagement: React.FC = () => {
     };
   }, []);
 
+  // Actualizar servicios filtrados cuando cambian los servicios
+  useEffect(() => {
+    if (services.length > 0) {
+      filterServicesByVehicleType(newOrderData.vehicleType);
+    }
+  }, [services]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -126,7 +179,11 @@ const CarwashManagement: React.FC = () => {
       ]);
 
       setWorkers(workersData.filter(w => w.isActive));
-      setServices(servicesData.filter(s => s.isActive));
+      const activeServices = servicesData.filter(s => s.isActive);
+      setServices(activeServices);
+      
+      // Inicializar servicios filtrados
+      filterServicesByVehicleType(newOrderData.vehicleType);
       
       const active = transactionsData.filter(t => t.status === 'pending' || t.status === 'in_progress');
       const completed = transactionsData.filter(t => t.status === 'completed' || t.status === 'cancelled');
@@ -168,8 +225,8 @@ const CarwashManagement: React.FC = () => {
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newOrderData.ticketId.trim() || !newOrderData.placa.trim() || !newOrderData.serviceId || !newOrderData.workerId) {
-      toast.error('Todos los campos son requeridos');
+    if (!newOrderData.placa.trim() || !newOrderData.serviceId || !newOrderData.workerId) {
+      toast.error('Placa, servicio y trabajador son requeridos');
       return;
     }
 
@@ -185,8 +242,15 @@ const CarwashManagement: React.FC = () => {
       const workerCommission = (selectedService.basePrice * selectedWorker.percentage) / 100;
       const companyEarning = selectedService.basePrice - workerCommission;
 
+      // Generar ID único para la transacción
+      const transactionId = `carwash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Generar ticket ID automático
+      const autoTicketId = `LAV${Date.now().toString().slice(-6)}`;
+
       const transactionData = {
-        ticketId: newOrderData.ticketId,
+        id: transactionId,
+        ticketId: autoTicketId,
         placa: newOrderData.placa.toUpperCase(),
         vehicleType: newOrderData.vehicleType,
         serviceName: selectedService.serviceName,
@@ -197,12 +261,25 @@ const CarwashManagement: React.FC = () => {
         workerCommission,
         companyEarning,
         status: 'pending' as const,
-        startTime: new Date()
+        startTime: new Date(),
+        estimatedTime: selectedService.estimatedTime,
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
       const dualDB = getDualDB();
       await dualDB.saveCarwashTransaction(transactionData);
+      
       toast.success(`Orden creada para ${selectedWorker.name} ${isOnline ? '' : '(sin conexión)'}`);
+
+      // Imprimir ticket automáticamente usando los datos que acabamos de crear
+      try {
+        await printCarwashTicket(transactionData as any);
+        toast.success('🖨️ Ticket generado');
+      } catch (printError) {
+        console.error('Error imprimiendo ticket:', printError);
+        toast.error('Orden creada pero error al imprimir');
+      }
 
       await loadData();
       setShowNewOrderModal(false);
@@ -256,7 +333,7 @@ const CarwashManagement: React.FC = () => {
         }
       };
 
-      printModernTicket(receiptData);
+      printThermalTicket(receiptData);
       
       toast.success('Trabajo completado e impreso');
       await loadData();
@@ -293,7 +370,20 @@ const CarwashManagement: React.FC = () => {
 
     try {
       const dualDB = getDualDB();
-      await dualDB.saveCarwashService(newServiceData);
+      
+      // Crear el objeto de servicio completo con id y fechas
+      const serviceToSave: CarwashService = {
+        id: `service-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        vehicleType: newServiceData.vehicleType,
+        serviceName: newServiceData.serviceName,
+        basePrice: newServiceData.basePrice,
+        estimatedTime: newServiceData.estimatedTime,
+        isActive: newServiceData.isActive,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      await dualDB.saveCarwashService(serviceToSave);
       toast.success(`Servicio creado ${isOnline ? '' : '(sin conexión)'}`);
       
       await loadData();
@@ -316,6 +406,18 @@ const CarwashManagement: React.FC = () => {
       workerId: '',
       estimatedTime: 30
     });
+    // Resetear servicios filtrados al tipo por defecto
+    filterServicesByVehicleType('car');
+  };
+
+  // Filtrar servicios por tipo de vehículo
+  const filterServicesByVehicleType = (vehicleType: string) => {
+    const filtered = services.filter(service => 
+      service.vehicleType === vehicleType || 
+      service.vehicleType === vehicleType.toLowerCase()
+    );
+    setFilteredServices(filtered);
+    console.log(`🔍 Servicios filtrados para ${vehicleType}:`, filtered.length);
   };
 
   const resetServiceForm = () => {
@@ -525,6 +627,22 @@ const CarwashManagement: React.FC = () => {
                     )}
                     
                     <button
+                      onClick={async () => {
+                        try {
+                          await printCarwashTicket(transaction as any);
+                          toast.success('🖨️ Ticket impreso');
+                        } catch (error) {
+                          console.error('Error imprimiendo:', error);
+                          toast.error('Error al imprimir');
+                        }
+                      }}
+                      className="px-3 py-2 border border-purple-300 text-purple-600 hover:bg-purple-50 rounded text-sm flex items-center gap-1"
+                      title="Imprimir ticket"
+                    >
+                      🖨️
+                    </button>
+                    
+                    <button
                       onClick={() => handleCancelWork(transaction)}
                       className="px-3 py-2 border border-red-300 text-red-600 hover:bg-red-50 rounded text-sm flex items-center gap-1"
                     >
@@ -562,6 +680,7 @@ const CarwashManagement: React.FC = () => {
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Precio</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Estado</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Fecha</th>
+                    <th className="text-center py-3 px-4 font-medium text-gray-700">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -591,6 +710,23 @@ const CarwashManagement: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-600">
                         {new Date(transaction.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await printCarwashTicket(transaction as any);
+                              toast.success('🖨️ Ticket impreso');
+                            } catch (error) {
+                              console.error('Error imprimiendo:', error);
+                              toast.error('Error al imprimir');
+                            }
+                          }}
+                          className="px-3 py-1 border border-purple-300 text-purple-600 hover:bg-purple-50 rounded text-sm inline-flex items-center gap-1"
+                          title="Imprimir ticket"
+                        >
+                          🖨️ Imprimir
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -625,18 +761,10 @@ const CarwashManagement: React.FC = () => {
               </div>
 
               <form onSubmit={handleCreateOrder} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID de Ticket *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newOrderData.ticketId}
-                    onChange={(e) => setNewOrderData({...newOrderData, ticketId: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Ej: TCK123456"
-                  />
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-blue-800">
+                    🎫 <strong>ID de Ticket:</strong> Se generará automáticamente al crear la orden
+                  </p>
                 </div>
 
                 <div>
@@ -659,12 +787,38 @@ const CarwashManagement: React.FC = () => {
                   </label>
                   <select
                     value={newOrderData.vehicleType}
-                    onChange={(e) => setNewOrderData({...newOrderData, vehicleType: e.target.value as any})}
+                    onChange={(e) => {
+                      const vehicleType = e.target.value;
+                      setNewOrderData({...newOrderData, vehicleType: vehicleType as any, serviceId: '', serviceName: '', basePrice: 0});
+                      filterServicesByVehicleType(vehicleType);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="car">Automóvil</option>
-                    <option value="motorcycle">Motocicleta</option>
-                    <option value="truck">Camión</option>
+                    {vehicleTypes.length > 0 ? (
+                      vehicleTypes.map((vt) => {
+                        const emojis: Record<string, string> = {
+                          'car': '🚗',
+                          'motorcycle': '🏍️',
+                          'truck': '🚛',
+                          'carro': '🚗',
+                          'moto': '🏍️',
+                          'camioneta': '🚙',
+                          'buseta': '🚐'
+                        };
+                        const emoji = emojis[vt.id.toLowerCase()] || '🚙';
+                        return (
+                          <option key={vt.id} value={vt.id}>
+                            {emoji} {vt.name}
+                          </option>
+                        );
+                      })
+                    ) : (
+                      <>
+                        <option value="car">🚗 Automóvil</option>
+                        <option value="motorcycle">🏍️ Motocicleta</option>
+                        <option value="truck">🚛 Camión</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -675,7 +829,7 @@ const CarwashManagement: React.FC = () => {
                   <select
                     value={newOrderData.serviceId}
                     onChange={(e) => {
-                      const service = services.find(s => s.id === e.target.value);
+                      const service = filteredServices.find(s => s.id === e.target.value);
                       setNewOrderData({
                         ...newOrderData, 
                         serviceId: e.target.value,
@@ -687,12 +841,26 @@ const CarwashManagement: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Seleccionar servicio</option>
-                    {services.map(service => (
-                      <option key={service.id} value={service.id}>
-                        {service.serviceName} - ${service.basePrice.toLocaleString()}
-                      </option>
-                    ))}
+                    {filteredServices.length > 0 ? (
+                      filteredServices.map(service => (
+                        <option key={service.id} value={service.id}>
+                          {service.serviceName} - ${service.basePrice.toLocaleString()}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>🚫 No hay servicios para este tipo de vehículo</option>
+                    )}
                   </select>
+                  {filteredServices.length > 0 && (
+                    <p className="text-xs text-gray-600 mt-1 bg-green-50 p-2 rounded">
+                      ✅ <strong>{filteredServices.length}</strong> servicio(s) disponible(s) para este tipo de vehículo
+                    </p>
+                  )}
+                  {filteredServices.length === 0 && (
+                    <p className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">
+                      ⚠️ No hay servicios configurados para este tipo de vehículo. Crea uno primero.
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -794,10 +962,33 @@ const CarwashManagement: React.FC = () => {
                     onChange={(e) => setNewServiceData({...newServiceData, vehicleType: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="car">Automóvil</option>
-                    <option value="motorcycle">Motocicleta</option>
-                    <option value="truck">Camión</option>
+                    {vehicleTypes.length > 0 ? (
+                      vehicleTypes.map((vt) => {
+                        const emojis: Record<string, string> = {
+                          'car': '🚗',
+                          'motorcycle': '🏍️',
+                          'truck': '🚛',
+                          'carro': '🚗',
+                          'moto': '🏍️',
+                          'camioneta': '🚙',
+                          'buseta': '🚐'
+                        };
+                        const emoji = emojis[vt.id.toLowerCase()] || '🚙';
+                        return (
+                          <option key={vt.id} value={vt.id}>
+                            {emoji} {vt.name}
+                          </option>
+                        );
+                      })
+                    ) : (
+                      <option value="">Cargando tipos de vehículos...</option>
+                    )}
                   </select>
+                  {vehicleTypes.length > 0 && (
+                    <p className="text-xs text-gray-600 mt-1 bg-blue-50 p-2 rounded">
+                      💡 <strong>{vehicleTypes.length}</strong> tipo(s) disponible(s) - Los tipos personalizados de "Gestión de Parqueadero" aparecen aquí automáticamente
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -823,7 +1014,7 @@ const CarwashManagement: React.FC = () => {
                     required
                     min="0"
                     step="1000"
-                    value={newServiceData.basePrice}
+                    value={newServiceData.basePrice || ''}
                     onChange={(e) => setNewServiceData({...newServiceData, basePrice: parseInt(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Ej: 15000"
@@ -839,7 +1030,7 @@ const CarwashManagement: React.FC = () => {
                     required
                     min="5"
                     step="5"
-                    value={newServiceData.estimatedTime}
+                    value={newServiceData.estimatedTime || ''}
                     onChange={(e) => setNewServiceData({...newServiceData, estimatedTime: parseInt(e.target.value) || 30})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Ej: 30"
