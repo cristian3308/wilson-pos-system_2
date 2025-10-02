@@ -1,0 +1,21 @@
+{
+  "name": "Wilson Cars & Wash - POS System",
+  "short_name": "Wilson POS",
+  "description": "Sistema POS profesional para Wilson Cars & Wash",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/images/company-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    }
+  ]
+}
