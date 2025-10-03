@@ -203,7 +203,7 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
           </div>
         )}
         <div style={{ marginTop: '3mm', fontSize: '7pt', color: 'black' }}>
-          {businessConfig?.businessWebsite || 'www.wilsoncars.com'}
+          {businessConfig?.ticketData?.website || 'www.wilsoncars.com'}
         </div>
       </div>
     </div>
