@@ -105,197 +105,180 @@ export const printThermalTicket = async (data: PrintData) => {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>${ticketData.companyName} - Ticket Térmico</title>
+    <title>${ticketData.companyName} - Ticket POS</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Configuración para impresoras POS térmicas 57mm (203DPI, ESC/POS) */
+        @media print {
+            @page {
+                margin: 0;
+                size: 57mm auto;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+            }
+        }
+        
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 9px;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 10px;
             background: white;
-            color: #2c3e50;
-            line-height: 1.3;
-            width: 76mm;
-            margin: 0 auto;
-            padding: 2mm;
+            color: black;
+            line-height: 1.2;
+            width: 57mm;
+            margin: 0;
+            padding: 2mm 3mm;
         }
         
         .ticket {
             width: 100%;
             background: white;
-            color: #2c3e50;
-            border: 2px solid #3498db;
-            border-radius: 4px;
-            padding: 8px;
-            position: relative;
+            color: black;
         }
         
+        /* Header - Solo texto, sin backgrounds */
         .header {
             text-align: center;
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            padding: 6px;
-            border-radius: 4px;
-            margin-bottom: 8px;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+            border-top: 2px solid black;
+            border-bottom: 2px solid black;
+            padding: 4px 0;
+            margin-bottom: 6px;
         }
         
         .company-name {
-            font-size: 11px;
+            font-size: 13px;
             font-weight: bold;
             margin-bottom: 2px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            letter-spacing: 0.5px;
         }
         
         .company-subtitle {
-            font-size: 8px;
-            margin-bottom: 1px;
-            opacity: 0.9;
+            font-size: 9px;
+            margin-bottom: 2px;
         }
         
         .nit {
-            font-size: 7px;
-            opacity: 0.8;
+            font-size: 8px;
+            margin-top: 2px;
         }
         
+        /* Tipo de ticket - Solo borde y texto negro */
         .ticket-type {
             text-align: center;
             font-weight: bold;
-            font-size: 10px;
+            font-size: 11px;
             margin: 6px 0;
-            border: 2px solid #e74c3c;
+            border: 2px solid black;
             padding: 4px;
-            background: linear-gradient(135deg, #ff7675, #e84393);
-            color: white;
-            border-radius: 4px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 1;
+            background: white;
+            color: black;
+            letter-spacing: 1px;
         }
         
+        /* Líneas de información */
         .info-line {
             display: flex;
             justify-content: space-between;
-            margin: 3px 0;
-            font-size: 8px;
+            margin: 2px 0;
+            font-size: 9px;
             padding: 1px 0;
-            position: relative;
-            z-index: 1;
         }
         
         .label {
             font-weight: bold;
-            color: #2c3e50;
+            color: black;
         }
         
         .value {
             text-align: right;
-            color: #34495e;
+            color: black;
         }
         
+        /* Separador - Línea punteada */
         .separator {
-            border-top: 1px dashed #bdc3c7;
-            margin: 6px 0;
-            position: relative;
-            z-index: 1;
+            border-top: 1px dashed black;
+            margin: 4px 0;
         }
         
+        /* Código de barras - Sin backgrounds */
         .barcode-section {
             text-align: center;
             margin: 6px 0;
-            border: 2px solid #9b59b6;
+            border: 1px solid black;
             padding: 4px;
-            background: linear-gradient(135deg, #ffffff, #f8f9fa);
-            border-radius: 4px;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 2px 8px rgba(155, 89, 182, 0.2);
-            width: 100%;
-            max-width: 100%;
+            background: white;
         }
         
         .barcode-title {
-            font-size: 6px;
+            font-size: 7px;
             font-weight: bold;
-            margin-bottom: 3px;
-            color: #9b59b6;
-            text-transform: uppercase;
+            margin-bottom: 2px;
+            color: black;
         }
         
         .barcode-visual {
             font-family: 'Courier New', monospace;
-            font-size: 5px;
+            font-size: 6px;
             margin: 3px 0;
             letter-spacing: 0px;
             line-height: 1;
             font-weight: bold;
-            color: #2c3e50;
+            color: black;
             background: white;
-            padding: 3px;
-            border: 1px solid #e0e0e0;
-            border-radius: 2px;
+            padding: 2px;
             word-break: break-all;
-            max-width: 100%;
-            overflow: hidden;
         }
         
         .barcode-code {
             font-family: 'Courier New', monospace;
-            font-size: 6px;
+            font-size: 8px;
             font-weight: bold;
-            margin: 3px 0;
-            letter-spacing: 0.5px;
-            color: #34495e;
-            word-break: break-all;
-        }
-            background: white;
-            padding: 2px;
-            border: 1px solid black;
-            overflow: hidden;
-            word-break: break-all;
-            max-width: 100%;
+            margin: 2px 0;
+            letter-spacing: 1px;
+            color: black;
         }
         
+        /* Sección de total - Solo bordes negros */
         .total-section {
             text-align: center;
-            border: 2px solid #27ae60;
+            border: 3px double black;
             padding: 6px;
             margin: 6px 0;
-            background: linear-gradient(135deg, #00b894, #00cec9);
-            border-radius: 4px;
-            color: white;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 2px 10px rgba(39, 174, 96, 0.3);
+            background: white;
+            color: black;
         }
         
         .total-label {
-            font-size: 8px;
+            font-size: 9px;
             font-weight: bold;
             margin-bottom: 2px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
         }
         
         .total-amount {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
             margin: 3px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            letter-spacing: 1px;
         }
         
+        /* Footer - Solo texto */
         .footer {
             text-align: center;
-            font-size: 6px;
-            background: linear-gradient(135deg, #636e72, #2d3436);
-            color: white;
-            padding: 4px;
-            border-radius: 4px;
+            font-size: 7px;
+            border-top: 1px solid black;
+            border-bottom: 1px solid black;
+            padding: 4px 0;
             margin-top: 6px;
-            position: relative;
-            z-index: 1;
-            line-height: 1.2;
+            line-height: 1.3;
+            color: black;
         }
         
         .footer-message {
@@ -321,20 +304,28 @@ export const printThermalTicket = async (data: PrintData) => {
             box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
         
+        .footer-message {
+            font-weight: bold;
+            font-size: 8px;
+            margin-bottom: 3px;
+        }
+        
+        .footer-info {
+            font-size: 7px;
+            line-height: 1.4;
+        }
+        
+        /* Optimización para impresión térmica */
         @media print {
             body { 
                 margin: 0; 
-                padding: 1mm; 
+                padding: 0; 
                 background: white;
-                -webkit-print-color-adjust: exact;
-                color-adjust: exact;
-                width: 80mm;
+                width: 57mm;
             }
             .ticket { 
-                border: 1px solid #3498db;
                 page-break-inside: avoid;
                 box-shadow: none;
-                max-width: 76mm;
             }
         }
     </style>
@@ -348,27 +339,27 @@ export const printThermalTicket = async (data: PrintData) => {
         </div>
         
         <div class="ticket-type">
-            ${data.type === 'entry' ? '🚗 ENTRADA VEHÍCULO 🚗' : '🏁 SALIDA VEHÍCULO 🏁'}
+            ${data.type === 'entry' ? '*** ENTRADA VEHICULO ***' : '*** SALIDA VEHICULO ***'}
         </div>
         
         <div class="info-line">
-            <span class="label">🚙 Placa:</span>
+            <span class="label">Placa:</span>
             <span class="value">${data.ticket.placa}</span>
         </div>
         
         <div class="info-line">
-            <span class="label">🚗 Vehículo:</span>
-            <span class="value">${data.vehicleType?.name || data.ticket.vehicleType}</span>
+            <span class="label">Vehiculo:</span>
+            <span class="value">__VEHICLE_TYPE_NAME__</span>
         </div>
         
         <div class="info-line">
-            <span class="label">${data.type === 'entry' ? '📥 Entrada:' : '📤 Salida:'}</span>
+            <span class="label">${data.type === 'entry' ? 'Entrada:' : 'Salida:'}</span>
             <span class="value">${(data.type === 'entry' ? data.ticket.fechaEntrada : data.ticket.fechaSalida)?.toLocaleString('es-CO')}</span>
         </div>
         
         ${data.type === 'exit' ? `
         <div class="info-line">
-            <span class="label">⏱️ Tiempo:</span>
+            <span class="label">Tiempo:</span>
             <span class="value">${data.ticket.tiempoTotal || 'N/A'}</span>
         </div>
         ` : ''}
@@ -376,7 +367,7 @@ export const printThermalTicket = async (data: PrintData) => {
         <div class="separator"></div>
         
         <div class="barcode-section">
-            <div class="barcode-title">🔍 Código de Barras</div>
+            <div class="barcode-title">CODIGO DE BARRAS</div>
             <div class="barcode-visual">${generateBarcodeLines(data.ticket.barcode)}</div>
             <div class="barcode-code">${data.ticket.barcode}</div>
         </div>
@@ -385,16 +376,16 @@ export const printThermalTicket = async (data: PrintData) => {
         
         ${data.type === 'exit' ? `
         <div class="total-section">
-            <div class="total-label">💰 Total a Pagar</div>
+            <div class="total-label">TOTAL A PAGAR</div>
             <div class="total-amount">$${data.ticket.valorPagar?.toLocaleString('es-CO') || '0'}</div>
-            <div style="font-size: 7px; margin-top: 2px; opacity: 0.9;">
-                Pago realizado el ${currentDate} a las ${currentTime}
+            <div style="font-size: 7px; margin-top: 2px;">
+                Pago: ${currentDate} ${currentTime}
             </div>
         </div>
         ` : `
         <div class="info-line">
-            <span class="label">💰 Tarifa/Hora:</span>
-            <span class="value">$${data.vehicleType?.tarifa?.toLocaleString('es-CO') || '0'}</span>
+            <span class="label">Tarifa/Hora:</span>
+            <span class="value">__VEHICLE_TARIFA__</span>
         </div>
         `}
         
@@ -403,22 +394,21 @@ export const printThermalTicket = async (data: PrintData) => {
         <div class="footer">
             <div class="footer-message">
                 ${data.type === 'entry' ? 
-                    '🔒 CONSERVE ESTE TICKET PARA LA SALIDA' : 
-                    '✅ GRACIAS POR USAR NUESTROS SERVICIOS'
+                    'CONSERVE ESTE TICKET' : 
+                    'GRACIAS POR SU VISITA'
                 }
             </div>
-            <div class="separator" style="border-color: rgba(255,255,255,0.3); margin: 3px 0;"></div>
+            <div class="separator" style="margin: 2px 0;"></div>
             <div class="footer-info">
-                📍 ${ticketData.companyName}<br>
-                📧 ${ticketData.email} | 📞 ${ticketData.phone}<br>
-                🌐 ${ticketData.website}<br>
+                ${ticketData.address}<br>
+                Tel: ${ticketData.phone}<br>
+                ${ticketData.email}<br>
                 ${ticketData.footerInfo}
             </div>
-            <div style="font-size: 5px; margin-top: 3px; opacity: 0.8;">
+            <div style="font-size: 6px; margin-top: 3px;">
                 ${currentDate} ${currentTime}<br>
-                Sistema POS v2.0 - ID: ${data.ticket.id?.substring(0, 8) || 'N/A'}
+                ID: ${data.ticket.id?.substring(0, 8) || 'N/A'}
             </div>
-            <div class="security-strip"></div>
         </div>
     </div>
     

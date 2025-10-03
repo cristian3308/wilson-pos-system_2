@@ -46,9 +46,9 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
 
   const getVehicleTypeLabel = () => {
     switch (ticket.vehicleType) {
-      case 'car': return 'CARRO 🚗';
-      case 'motorcycle': return 'MOTO 🏍️';
-      case 'truck': return 'CAMIÓN 🚛';
+      case 'car': return 'CARRO';
+      case 'motorcycle': return 'MOTO';
+      case 'truck': return 'CAMION';
       default: return String(ticket.vehicleType).toUpperCase();
     }
   };
@@ -151,22 +151,22 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
         {ticket.status === 'completed' ? (
           <div style={{ 
             padding: '2mm', 
-            background: '#e8f5e9', 
-            border: '2px solid #4caf50',
-            borderRadius: '3mm',
-            fontWeight: 'bold'
+            background: 'white', 
+            border: '2px solid black',
+            fontWeight: 'bold',
+            color: 'black'
           }}>
-            ✓ COMPLETADO
+            COMPLETADO
           </div>
         ) : (
           <div style={{ 
             padding: '2mm', 
-            background: '#fff3e0', 
-            border: '2px solid #ff9800',
-            borderRadius: '3mm',
-            fontWeight: 'bold'
+            background: 'white', 
+            border: '2px solid black',
+            fontWeight: 'bold',
+            color: 'black'
           }}>
-            ⏱ EN CURSO
+            EN CURSO
           </div>
         )}
       </div>
@@ -192,18 +192,18 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
       {/* Footer */}
       <div className="receipt-footer">
         <div className="receipt-footer-message">
-          ¡GRACIAS POR PREFERIRNOS!
+          GRACIAS POR PREFERIRNOS
         </div>
         <div className="receipt-footer-info">
-          Conserve este ticket para retirar su vehículo
+          Conserve este ticket para retirar su vehiculo
         </div>
         {!ticket.exitTime && (
           <div className="receipt-footer-info" style={{ marginTop: '2mm', fontWeight: 'bold' }}>
             Presente este ticket al salir
           </div>
         )}
-        <div style={{ marginTop: '3mm', fontSize: '8pt' }}>
-          www.wilsoncars.com
+        <div style={{ marginTop: '3mm', fontSize: '7pt', color: 'black' }}>
+          {businessConfig?.businessWebsite || 'www.wilsoncars.com'}
         </div>
       </div>
     </div>
