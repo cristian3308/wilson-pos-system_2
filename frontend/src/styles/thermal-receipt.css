@@ -310,7 +310,7 @@
   .thermal-receipt {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    color-adjust: exact;
+   
   }
   
   .receipt-highlight {

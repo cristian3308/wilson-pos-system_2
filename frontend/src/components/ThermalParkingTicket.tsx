@@ -61,25 +61,25 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
     <div id="thermal-receipt" className="thermal-receipt">
       {/* Header */}
       <div className="receipt-header">
-        <div className="receipt-title">TICKET PARQUEADERO</div>
-        <div className="receipt-business-name">
+        <div className="receipt-title" style={{ fontSize: '14pt', marginBottom: '3mm' }}>TICKET PARQUEADERO</div>
+        <div className="receipt-business-name" style={{ fontSize: '16pt', marginBottom: '2mm' }}>
           {businessConfig?.businessName || 'WILSON CARS & WASH'}
         </div>
         {businessConfig?.businessAddress && (
-          <div className="receipt-subtitle">{businessConfig.businessAddress}</div>
+          <div className="receipt-subtitle" style={{ fontSize: '10pt', marginBottom: '2mm' }}>{businessConfig.businessAddress}</div>
         )}
         {businessConfig?.businessPhone && (
-          <div className="receipt-subtitle">Tel: {businessConfig.businessPhone}</div>
+          <div className="receipt-subtitle" style={{ fontSize: '10pt' }}>Tel: {businessConfig.businessPhone}</div>
         )}
       </div>
 
       {/* Ticket Info */}
-      <div className="receipt-info">
-        <div className="receipt-info-row">
+      <div className="receipt-info" style={{ marginBottom: '5mm' }}>
+        <div className="receipt-info-row" style={{ fontSize: '11pt', marginBottom: '3mm' }}>
           <span className="receipt-info-label">Ticket:</span>
           <span>{ticket.id.slice(-8).toUpperCase()}</span>
         </div>
-        <div className="receipt-info-row">
+        <div className="receipt-info-row" style={{ fontSize: '11pt' }}>
           <span className="receipt-info-label">Fecha:</span>
           <span>{formatDate(ticket.entryTime)}</span>
         </div>
@@ -88,10 +88,10 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
       <div className="receipt-divider-double"></div>
 
       {/* Vehicle Info */}
-      <div className="receipt-section">
+      <div className="receipt-section" style={{ marginBottom: '5mm', marginTop: '5mm' }}>
         <div className="receipt-highlight">
-          <div className="receipt-highlight-title">{getVehicleTypeLabel()}</div>
-          <div className="receipt-highlight-value" style={{ fontSize: '24pt', letterSpacing: '3px' }}>
+          <div className="receipt-highlight-title" style={{ fontSize: '13pt', marginBottom: '3mm' }}>{getVehicleTypeLabel()}</div>
+          <div className="receipt-highlight-value" style={{ fontSize: '28pt', letterSpacing: '4px', padding: '3mm 0' }}>
             {ticket.placa}
           </div>
         </div>
@@ -100,22 +100,22 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
       <div className="receipt-divider"></div>
 
       {/* Entry Details */}
-      <div className="receipt-section">
-        <div className="receipt-section-title">ENTRADA</div>
-        <div className="receipt-item">
+      <div className="receipt-section" style={{ marginTop: '5mm', marginBottom: '5mm' }}>
+        <div className="receipt-section-title" style={{ fontSize: '13pt', marginBottom: '3mm' }}>ENTRADA</div>
+        <div className="receipt-item" style={{ fontSize: '11pt', marginBottom: '3mm' }}>
           <span className="receipt-item-name">Hora de Entrada:</span>
           <span className="receipt-item-value">{formatTime(ticket.entryTime)}</span>
         </div>
         
         {ticket.exitTime && (
           <>
-            <div className="receipt-divider"></div>
-            <div className="receipt-section-title">SALIDA</div>
-            <div className="receipt-item">
+            <div className="receipt-divider" style={{ margin: '4mm 0' }}></div>
+            <div className="receipt-section-title" style={{ fontSize: '13pt', marginBottom: '3mm' }}>SALIDA</div>
+            <div className="receipt-item" style={{ fontSize: '11pt', marginBottom: '3mm' }}>
               <span className="receipt-item-name">Hora de Salida:</span>
               <span className="receipt-item-value">{formatTime(ticket.exitTime)}</span>
             </div>
-            <div className="receipt-item">
+            <div className="receipt-item" style={{ fontSize: '11pt' }}>
               <span className="receipt-item-name">Tiempo Total:</span>
               <span className="receipt-item-value">{calculateDuration()}</span>
             </div>
@@ -126,20 +126,20 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
       <div className="receipt-divider-double"></div>
 
       {/* Pricing */}
-      <div className="receipt-totals">
-        <div className="receipt-total-row">
+      <div className="receipt-totals" style={{ marginTop: '5mm', marginBottom: '5mm' }}>
+        <div className="receipt-total-row" style={{ fontSize: '11pt', marginBottom: '3mm' }}>
           <span className="receipt-total-label">Tarifa Base:</span>
           <span className="receipt-total-value">{formatCurrency(ticket.basePrice)}</span>
         </div>
 
         {ticket.totalAmount && ticket.totalAmount !== ticket.basePrice && (
-          <div className="receipt-total-row">
+          <div className="receipt-total-row" style={{ fontSize: '11pt', marginBottom: '3mm' }}>
             <span className="receipt-total-label">Tiempo Adicional:</span>
             <span className="receipt-total-value">{formatCurrency(ticket.totalAmount - ticket.basePrice)}</span>
           </div>
         )}
 
-        <div className="receipt-total-row grand-total">
+        <div className="receipt-total-row grand-total" style={{ fontSize: '16pt', padding: '3mm 0' }}>
           <span className="receipt-total-label">TOTAL A PAGAR:</span>
           <span className="receipt-total-value">{formatCurrency(ticket.totalAmount || ticket.basePrice)}</span>
         </div>
@@ -147,24 +147,26 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
 
       {/* Status */}
       <div className="receipt-divider"></div>
-      <div style={{ textAlign: 'center', margin: '3mm 0' }}>
+      <div style={{ textAlign: 'center', margin: '5mm 0' }}>
         {ticket.status === 'completed' ? (
           <div style={{ 
-            padding: '2mm', 
+            padding: '3mm', 
             background: 'white', 
-            border: '2px solid black',
+            border: '3px solid black',
             fontWeight: 'bold',
-            color: 'black'
+            color: 'black',
+            fontSize: '13pt'
           }}>
             COMPLETADO
           </div>
         ) : (
           <div style={{ 
-            padding: '2mm', 
+            padding: '3mm', 
             background: 'white', 
-            border: '2px solid black',
+            border: '3px solid black',
             fontWeight: 'bold',
-            color: 'black'
+            color: 'black',
+            fontSize: '13pt'
           }}>
             EN CURSO
           </div>
@@ -174,35 +176,35 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
       <div className="receipt-divider-double"></div>
 
       {/* Barcode */}
-      <div className="receipt-barcode">
+      <div className="receipt-barcode" style={{ marginTop: '5mm', marginBottom: '5mm' }}>
         <div style={{ 
-          height: '15mm', 
+          height: '18mm', 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
-          fontSize: '8pt',
-          letterSpacing: '1px',
+          fontSize: '10pt',
+          letterSpacing: '2px',
           fontFamily: 'monospace'
         }}>
           |||| || |||| || || |||| || ||||
         </div>
-        <div className="receipt-barcode-text">{generateTicketBarcode()}</div>
+        <div className="receipt-barcode-text" style={{ fontSize: '10pt', marginTop: '2mm' }}>{generateTicketBarcode()}</div>
       </div>
 
       {/* Footer */}
-      <div className="receipt-footer">
-        <div className="receipt-footer-message">
+      <div className="receipt-footer" style={{ marginTop: '5mm' }}>
+        <div className="receipt-footer-message" style={{ fontSize: '12pt', marginBottom: '3mm' }}>
           GRACIAS POR PREFERIRNOS
         </div>
-        <div className="receipt-footer-info">
+        <div className="receipt-footer-info" style={{ fontSize: '10pt', marginBottom: '2mm' }}>
           Conserve este ticket para retirar su vehiculo
         </div>
         {!ticket.exitTime && (
-          <div className="receipt-footer-info" style={{ marginTop: '2mm', fontWeight: 'bold' }}>
+          <div className="receipt-footer-info" style={{ marginTop: '3mm', fontWeight: 'bold', fontSize: '11pt' }}>
             Presente este ticket al salir
           </div>
         )}
-        <div style={{ marginTop: '3mm', fontSize: '7pt', color: 'black' }}>
+        <div style={{ marginTop: '4mm', fontSize: '9pt', color: 'black' }}>
           {businessConfig?.ticketData?.website || 'www.wilsoncars.com'}
         </div>
       </div>
