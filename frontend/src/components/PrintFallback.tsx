@@ -129,13 +129,14 @@ export const printThermalTicket = async (data: PrintData) => {
         
         body {
             font-family: 'Courier New', 'Consolas', monospace;
-            font-size: 10px;
+            font-size: 9px;
+            font-weight: bold;
             background: white;
             color: black;
-            line-height: 1.2;
+            line-height: 1.4;
             width: 57mm;
             margin: 0;
-            padding: 2mm 3mm;
+            padding: 3mm 3mm;
         }
         
         .ticket {
@@ -149,35 +150,37 @@ export const printThermalTicket = async (data: PrintData) => {
             text-align: center;
             border-top: 2px solid black;
             border-bottom: 2px solid black;
-            padding: 4px 0;
-            margin-bottom: 6px;
+            padding: 5px 0;
+            margin-bottom: 8px;
         }
         
         .company-name {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
             letter-spacing: 0.5px;
         }
         
         .company-subtitle {
-            font-size: 9px;
-            margin-bottom: 2px;
+            font-size: 8px;
+            font-weight: bold;
+            margin-bottom: 3px;
         }
         
         .nit {
-            font-size: 8px;
-            margin-top: 2px;
+            font-size: 7px;
+            font-weight: bold;
+            margin-top: 3px;
         }
         
         /* Tipo de ticket - Solo borde y texto negro */
         .ticket-type {
             text-align: center;
             font-weight: bold;
-            font-size: 11px;
-            margin: 6px 0;
+            font-size: 10px;
+            margin: 8px 0;
             border: 2px solid black;
-            padding: 4px;
+            padding: 5px;
             background: white;
             color: black;
             letter-spacing: 1px;
@@ -187,9 +190,10 @@ export const printThermalTicket = async (data: PrintData) => {
         .info-line {
             display: flex;
             justify-content: space-between;
-            margin: 2px 0;
-            font-size: 9px;
-            padding: 1px 0;
+            margin: 3px 0;
+            font-size: 8px;
+            font-weight: bold;
+            padding: 2px 0;
         }
         
         .label {
@@ -199,49 +203,50 @@ export const printThermalTicket = async (data: PrintData) => {
         
         .value {
             text-align: right;
+            font-weight: bold;
             color: black;
         }
         
         /* Separador - Línea punteada */
         .separator {
             border-top: 1px dashed black;
-            margin: 4px 0;
+            margin: 6px 0;
         }
         
         /* Código de barras - Sin backgrounds */
         .barcode-section {
             text-align: center;
-            margin: 6px 0;
+            margin: 8px 0;
             border: 1px solid black;
-            padding: 4px;
+            padding: 5px;
             background: white;
         }
         
         .barcode-title {
             font-size: 7px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
             color: black;
         }
         
         .barcode-visual {
             font-family: 'Courier New', monospace;
             font-size: 6px;
-            margin: 3px 0;
+            margin: 4px 0;
             letter-spacing: 0px;
             line-height: 1;
             font-weight: bold;
             color: black;
             background: white;
-            padding: 2px;
+            padding: 3px;
             word-break: break-all;
         }
         
         .barcode-code {
             font-family: 'Courier New', monospace;
-            font-size: 8px;
+            font-size: 7px;
             font-weight: bold;
-            margin: 2px 0;
+            margin: 3px 0;
             letter-spacing: 1px;
             color: black;
         }
@@ -250,22 +255,22 @@ export const printThermalTicket = async (data: PrintData) => {
         .total-section {
             text-align: center;
             border: 3px double black;
-            padding: 6px;
-            margin: 6px 0;
+            padding: 7px;
+            margin: 8px 0;
             background: white;
             color: black;
         }
         
         .total-label {
-            font-size: 9px;
+            font-size: 8px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
         }
         
         .total-amount {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
-            margin: 3px 0;
+            margin: 4px 0;
             letter-spacing: 1px;
         }
         
@@ -275,22 +280,22 @@ export const printThermalTicket = async (data: PrintData) => {
             font-size: 7px;
             border-top: 1px solid black;
             border-bottom: 1px solid black;
-            padding: 4px 0;
-            margin-top: 6px;
-            line-height: 1.3;
+            padding: 5px 0;
+            margin-top: 8px;
+            line-height: 1.4;
             color: black;
         }
         
         .footer-message {
             font-weight: bold;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
             font-size: 7px;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
         }
         
         .footer-info {
-            margin: 2px 0;
-            line-height: 1.3;
+            margin: 3px 0;
+            line-height: 1.4;
             opacity: 0.9;
         }
         
@@ -998,13 +1003,14 @@ export const printCarwashTicket = async (transaction: CarwashTicketData) => {
         
         body {
             font-family: 'Courier New', 'Consolas', monospace;
-            font-size: 32pt;
+            font-size: 9px;
+            font-weight: bold;
             background: white;
             color: #000;
-            line-height: 1.6;
+            line-height: 1.5;
             width: 57mm;
             margin: 0 auto;
-            padding: 3mm 5mm;
+            padding: 3mm;
         }
         
         .ticket {
@@ -1015,46 +1021,48 @@ export const printCarwashTicket = async (transaction: CarwashTicketData) => {
         
         .header {
             text-align: center;
-            margin-bottom: 10mm;
+            margin-bottom: 8px;
             border-top: 3px solid #000;
             border-bottom: 3px solid #000;
-            padding: 8mm 0;
+            padding: 5px 0;
         }
         
         .company-name {
-            font-size: 32pt;
+            font-size: 11px;
             font-weight: bold;
-            margin-bottom: 8mm;
-            line-height: 1.6;
+            margin-bottom: 3px;
+            line-height: 1.4;
         }
         
         .company-subtitle {
-            font-size: 32pt;
-            margin-bottom: 8mm;
-            line-height: 1.6;
+            font-size: 8px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            line-height: 1.4;
         }
         
         .nit {
-            font-size: 32pt;
-            line-height: 1.6;
+            font-size: 7px;
+            font-weight: bold;
+            line-height: 1.4;
         }
         
         .ticket-type {
             text-align: center;
             font-weight: bold;
-            font-size: 32pt;
-            margin: 12mm 0;
-            border: 5px solid #000;
-            padding: 8mm;
-            line-height: 1.6;
+            font-size: 10px;
+            margin: 8px 0;
+            border: 2px solid #000;
+            padding: 5px;
+            line-height: 1.4;
         }
         
         .info-line {
             display: flex;
             justify-content: space-between;
-            margin: 8mm 0;
-            font-size: 32pt;
-            line-height: 1.8;
+            margin: 3px 0;
+            font-size: 8px;
+            line-height: 1.5;
             font-weight: bold;
         }
         
@@ -1069,32 +1077,32 @@ export const printCarwashTicket = async (transaction: CarwashTicketData) => {
         
         .separator {
             border-top: 2px solid #000;
-            margin: 10mm 0;
+            margin: 6px 0;
         }
         
         .barcode-section {
             text-align: center;
-            margin: 12mm 0;
-            border: 3px solid #000;
-            padding: 8mm;
+            margin: 8px 0;
+            border: 2px solid #000;
+            padding: 5px;
         }
         
         .barcode-title {
-            font-size: 32pt;
+            font-size: 7px;
             font-weight: bold;
-            margin-bottom: 8mm;
-            line-height: 1.6;
+            margin-bottom: 3px;
+            line-height: 1.4;
         }
         
         .barcode-visual {
             font-family: 'Libre Barcode 128', 'Courier New', monospace;
-            font-size: 20pt;
-            margin: 8mm 0;
+            font-size: 12px;
+            margin: 4px 0;
             letter-spacing: 1px;
             line-height: 1;
             font-weight: bold;
-            padding: 6mm 0;
-            height: 45mm;
+            padding: 3px 0;
+            height: 20mm;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1103,77 +1111,78 @@ export const printCarwashTicket = async (transaction: CarwashTicketData) => {
         
         .barcode-code {
             font-family: 'Courier New', monospace;
-            font-size: 32pt;
+            font-size: 7px;
             font-weight: bold;
-            margin: 8mm 0;
-            letter-spacing: 4px;
-            line-height: 1.6;
+            margin: 3px 0;
+            letter-spacing: 1px;
+            line-height: 1.4;
         }
         
         .service-section {
             text-align: center;
-            border: 5px solid #000;
-            padding: 10mm;
-            margin: 12mm 0;
+            border: 3px solid #000;
+            padding: 6px;
+            margin: 8px 0;
         }
         
         .service-name {
-            font-size: 32pt;
+            font-size: 10px;
             font-weight: bold;
-            margin-bottom: 8mm;
-            line-height: 1.6;
+            margin-bottom: 4px;
+            line-height: 1.4;
         }
         
         .service-price {
-            font-size: 32pt;
+            font-size: 12px;
             font-weight: bold;
-            margin: 8mm 0;
-            line-height: 1.6;
+            margin: 4px 0;
+            line-height: 1.4;
         }
         
         .commission-section {
             border: 2px solid #000;
-            padding: 8mm;
-            margin: 12mm 0;
+            padding: 5px;
+            margin: 8px 0;
         }
         
         .commission-title {
-            font-size: 32pt;
+            font-size: 8px;
             font-weight: bold;
             text-align: center;
-            margin-bottom: 8mm;
-            line-height: 1.6;
+            margin-bottom: 4px;
+            line-height: 1.4;
         }
         
         .footer {
             text-align: center;
-            margin-top: 12mm;
+            margin-top: 8px;
             border-top: 3px solid #000;
             border-bottom: 3px solid #000;
-            padding: 10mm 0;
+            padding: 5px 0;
         }
         
         .footer-message {
             font-weight: bold;
-            margin-bottom: 8mm;
-            font-size: 32pt;
-            line-height: 1.6;
+            margin-bottom: 4px;
+            font-size: 8px;
+            line-height: 1.4;
         }
         
         .footer-info {
-            margin: 8mm 0;
-            line-height: 1.6;
-            font-size: 32pt;
+            margin: 3px 0;
+            line-height: 1.4;
+            font-size: 7px;
+            font-weight: bold;
         }
         
         .placa-highlight {
-            font-size: 52pt;
-            letter-spacing: 8px;
-            padding: 10mm 0;
+            font-size: 14px;
+            letter-spacing: 2px;
+            padding: 6px 0;
             font-weight: bold;
-            border: 5px solid #000;
+            border: 3px solid #000;
             text-align: center;
-            margin: 12mm 0;
+            margin: 8px 0;
         }
         
         @media print {
