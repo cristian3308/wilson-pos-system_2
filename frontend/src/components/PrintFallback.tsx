@@ -991,244 +991,195 @@ export const printCarwashTicket = async (transaction: CarwashTicketData) => {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        @page {
+            size: 57mm auto;
+            margin: 0 3mm;
+        }
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 9px;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 32pt;
             background: white;
-            color: #2c3e50;
-            line-height: 1.3;
-            width: 76mm;
+            color: #000;
+            line-height: 1.6;
+            width: 57mm;
             margin: 0 auto;
-            padding: 2mm;
+            padding: 3mm 5mm;
         }
         
         .ticket {
             width: 100%;
             background: white;
-            color: #2c3e50;
-            border: 2px solid #9b59b6;
-            border-radius: 4px;
-            padding: 8px;
-            position: relative;
+            color: #000;
         }
         
         .header {
             text-align: center;
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-            color: white;
-            padding: 6px;
-            border-radius: 4px;
-            margin-bottom: 8px;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+            margin-bottom: 10mm;
+            border-top: 3px solid #000;
+            border-bottom: 3px solid #000;
+            padding: 8mm 0;
         }
         
         .company-name {
-            font-size: 11px;
+            font-size: 32pt;
             font-weight: bold;
-            margin-bottom: 2px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            margin-bottom: 8mm;
+            line-height: 1.6;
         }
         
         .company-subtitle {
-            font-size: 8px;
-            margin-bottom: 1px;
-            opacity: 0.9;
+            font-size: 32pt;
+            margin-bottom: 8mm;
+            line-height: 1.6;
         }
         
         .nit {
-            font-size: 7px;
-            opacity: 0.8;
+            font-size: 32pt;
+            line-height: 1.6;
         }
         
         .ticket-type {
             text-align: center;
             font-weight: bold;
-            font-size: 10px;
-            margin: 6px 0;
-            border: 2px solid #e67e22;
-            padding: 4px;
-            background: linear-gradient(135deg, #f39c12, #e67e22);
-            color: white;
-            border-radius: 4px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 1;
+            font-size: 32pt;
+            margin: 12mm 0;
+            border: 5px solid #000;
+            padding: 8mm;
+            line-height: 1.6;
         }
         
         .info-line {
             display: flex;
             justify-content: space-between;
-            margin: 3px 0;
-            font-size: 8px;
-            padding: 1px 0;
-            position: relative;
-            z-index: 1;
+            margin: 8mm 0;
+            font-size: 32pt;
+            line-height: 1.8;
+            font-weight: bold;
         }
         
         .label {
             font-weight: bold;
-            color: #2c3e50;
         }
         
         .value {
             text-align: right;
-            color: #34495e;
+            font-weight: bold;
         }
         
         .separator {
-            border-top: 1px dashed #bdc3c7;
-            margin: 6px 0;
-            position: relative;
-            z-index: 1;
+            border-top: 2px solid #000;
+            margin: 10mm 0;
         }
         
         .barcode-section {
             text-align: center;
-            margin: 6px 0;
-            border: 2px solid #3498db;
-            padding: 4px;
-            background: linear-gradient(135deg, #ffffff, #f8f9fa);
-            border-radius: 4px;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
-            width: 100%;
-            max-width: 100%;
+            margin: 12mm 0;
+            border: 3px solid #000;
+            padding: 8mm;
         }
         
         .barcode-title {
-            font-size: 6px;
+            font-size: 32pt;
             font-weight: bold;
-            margin-bottom: 3px;
-            color: #3498db;
-            text-transform: uppercase;
+            margin-bottom: 8mm;
+            line-height: 1.6;
         }
         
         .barcode-visual {
-            font-family: 'Courier New', monospace;
-            font-size: 5px;
-            margin: 3px 0;
-            letter-spacing: 0px;
+            font-family: 'Libre Barcode 128', 'Courier New', monospace;
+            font-size: 20pt;
+            margin: 8mm 0;
+            letter-spacing: 1px;
             line-height: 1;
             font-weight: bold;
-            color: #2c3e50;
-            background: white;
-            padding: 3px;
-            border: 1px solid #e0e0e0;
-            border-radius: 2px;
-            word-break: break-all;
-            max-width: 100%;
-            overflow: hidden;
+            padding: 6mm 0;
+            height: 45mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: scaleY(3);
         }
         
         .barcode-code {
             font-family: 'Courier New', monospace;
-            font-size: 6px;
+            font-size: 32pt;
             font-weight: bold;
-            margin: 3px 0;
-            letter-spacing: 0.5px;
-            color: #34495e;
-            word-break: break-all;
+            margin: 8mm 0;
+            letter-spacing: 4px;
+            line-height: 1.6;
         }
         
         .service-section {
             text-align: center;
-            border: 2px solid #16a085;
-            padding: 6px;
-            margin: 6px 0;
-            background: linear-gradient(135deg, #1abc9c, #16a085);
-            border-radius: 4px;
-            color: white;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 2px 10px rgba(22, 160, 133, 0.3);
+            border: 5px solid #000;
+            padding: 10mm;
+            margin: 12mm 0;
         }
         
         .service-name {
-            font-size: 10px;
+            font-size: 32pt;
             font-weight: bold;
-            margin-bottom: 2px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            margin-bottom: 8mm;
+            line-height: 1.6;
         }
         
         .service-price {
-            font-size: 14px;
+            font-size: 32pt;
             font-weight: bold;
-            margin: 3px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin: 8mm 0;
+            line-height: 1.6;
         }
         
         .commission-section {
-            background: #ecf0f1;
-            padding: 4px;
-            margin: 6px 0;
-            border-radius: 4px;
-            border: 1px solid #bdc3c7;
+            border: 2px solid #000;
+            padding: 8mm;
+            margin: 12mm 0;
         }
         
         .commission-title {
-            font-size: 7px;
+            font-size: 32pt;
             font-weight: bold;
             text-align: center;
-            color: #7f8c8d;
-            margin-bottom: 3px;
+            margin-bottom: 8mm;
+            line-height: 1.6;
         }
         
         .footer {
             text-align: center;
-            font-size: 6px;
-            background: linear-gradient(135deg, #636e72, #2d3436);
-            color: white;
-            padding: 4px;
-            border-radius: 4px;
-            margin-top: 6px;
-            position: relative;
-            z-index: 1;
-            line-height: 1.2;
+            margin-top: 12mm;
+            border-top: 3px solid #000;
+            border-bottom: 3px solid #000;
+            padding: 10mm 0;
         }
         
         .footer-message {
             font-weight: bold;
-            margin-bottom: 3px;
-            font-size: 7px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            margin-bottom: 8mm;
+            font-size: 32pt;
+            line-height: 1.6;
         }
         
         .footer-info {
-            margin: 2px 0;
-            line-height: 1.3;
-            opacity: 0.9;
+            margin: 8mm 0;
+            line-height: 1.6;
+            font-size: 32pt;
         }
         
-        .security-strip {
-            height: 4px;
-            background: linear-gradient(90deg, #9b59b6, #8e44ad, #9b59b6);
-            margin-top: 6px;
-            border-radius: 2px;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        .placa-highlight {
+            font-size: 52pt;
+            letter-spacing: 8px;
+            padding: 10mm 0;
+            font-weight: bold;
+            border: 5px solid #000;
+            text-align: center;
+            margin: 12mm 0;
         }
         
         @media print {
             body { 
-                margin: 0; 
-                padding: 1mm; 
-                background: white;
                 -webkit-print-color-adjust: exact;
-                color-adjust: exact;
-                width: 80mm;
-            }
-            .ticket { 
-                border: 1px solid #9b59b6;
-                page-break-inside: avoid;
-                box-shadow: none;
-            }
-            .header, .ticket-type, .service-section, .footer {
-                -webkit-print-color-adjust: exact;
-                color-adjust: exact;
+                print-color-adjust: exact;
             }
         }
     </style>
@@ -1242,42 +1193,39 @@ export const printCarwashTicket = async (transaction: CarwashTicketData) => {
         </div>
         
         <div class="ticket-type">
-            💧 ORDEN DE LAVADO 💧
+            ORDEN DE LAVADO
         </div>
         
         <div class="barcode-section">
-            <div class="barcode-title">🎫 ID DE ORDEN</div>
-            <div class="barcode-visual">${generateBarcodeLines(transaction.ticketId)}</div>
+            <div class="barcode-title">ID DE ORDEN</div>
+            <div class="barcode-visual">* ${transaction.ticketId} *</div>
             <div class="barcode-code">${transaction.ticketId}</div>
         </div>
         
         <div class="separator"></div>
         
         <div class="info-line">
-            <span class="label">📅 Fecha:</span>
+            <span class="label">Fecha:</span>
             <span class="value">${startDate}</span>
         </div>
         
         <div class="info-line">
-            <span class="label">⏰ Hora:</span>
+            <span class="label">Hora:</span>
             <span class="value">${startTime}</span>
         </div>
         
         <div class="separator"></div>
         
         <div class="info-line">
-            <span class="label">${getVehicleEmoji(transaction.vehicleType)} Tipo:</span>
+            <span class="label">Tipo:</span>
             <span class="value">${transaction.vehicleType}</span>
         </div>
         
-        <div class="info-line">
-            <span class="label">🚗 Placa:</span>
-            <span class="value">${transaction.placa}</span>
-        </div>
+        <div class="placa-highlight">${transaction.placa}</div>
         
         ${transaction.estimatedTime ? `
         <div class="info-line">
-            <span class="label">⏱️ Tiempo Est.:</span>
+            <span class="label">Tiempo Est.:</span>
             <span class="value">${transaction.estimatedTime} min</span>
         </div>
         ` : ''}
@@ -1285,21 +1233,21 @@ export const printCarwashTicket = async (transaction: CarwashTicketData) => {
         <div class="separator"></div>
         
         <div class="service-section">
-            <div class="service-name">✨ ${transaction.serviceName} ✨</div>
+            <div class="service-name">${transaction.serviceName}</div>
             <div class="service-price">$${transaction.basePrice.toLocaleString('es-CO')}</div>
         </div>
         
         <div class="separator"></div>
         
         <div class="info-line">
-            <span class="label">👷 Trabajador:</span>
+            <span class="label">Trabajador:</span>
             <span class="value">${transaction.workerName}</span>
         </div>
         
         <div class="commission-section">
-            <div class="commission-title">📊 DISTRIBUCIÓN</div>
+            <div class="commission-title">DISTRIBUCION</div>
             <div class="info-line">
-                <span class="label">Comisión (${transaction.workerPercentage}%):</span>
+                <span class="label">Comision (${transaction.workerPercentage}%):</span>
                 <span class="value">$${transaction.workerCommission.toLocaleString('es-CO')}</span>
             </div>
             <div class="info-line">
@@ -1313,15 +1261,17 @@ export const printCarwashTicket = async (transaction: CarwashTicketData) => {
         <div class="footer">
             <div class="footer-message">${ticketData.footerMessage}</div>
             <div class="footer-info">
-                📍 ${ticketData.address}<br>
-                📧 ${ticketData.email} | 📞 ${ticketData.phone}<br>
+                ${ticketData.address}
+            </div>
+            <div class="footer-info">
+                ${ticketData.email} | ${ticketData.phone}
+            </div>
+            <div class="footer-info">
                 ${ticketData.footerInfo}
             </div>
-            <div style="font-size: 9px; opacity: 0.8; margin-top: 8px; position: relative; z-index: 1; color: rgba(255,255,255,0.8);">
-                Ticket generado el ${currentDate} a las ${currentTime}<br>
-                Sistema POS Wilson v2.0 | ID: ${transaction.id.substring(0, 8)}
+            <div class="footer-info" style="margin-top: 10mm;">
+                Ticket: ${currentDate} - ${currentTime}
             </div>
-            <div class="security-strip"></div>
         </div>
     </div>
     
