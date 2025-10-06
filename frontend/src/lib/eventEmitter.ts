@@ -41,4 +41,5 @@ export const APP_EVENTS = {
   VEHICLE_TYPE_UPDATED: 'vehicle-type-updated',
   VEHICLE_TYPE_DELETED: 'vehicle-type-deleted',
   CONFIG_UPDATED: 'config-updated',
+  CARWASH_ORDER_UPDATED: 'carwash-order-updated', // 🔄 Evento para actualización de órdenes del lavadero
 } as const;

@@ -34,18 +34,19 @@ const BarcodeReaderConfig: React.FC<BarcodeReaderConfigProps> = ({
     setIsSupported(barcodeReaderService.isSupported());
     updateStatus();
 
-    // Configurar callbacks
-    barcodeReaderService.onBarcode((barcode: string) => {
-      setLastScannedBarcode(barcode);
-      setScannedCodes(prev => [{
-        code: barcode,
-        timestamp: new Date()
-      }, ...prev.slice(0, 9)]); // Mantener solo los últimos 10
-      
-      if (onBarcodeScanned) {
+    // Configurar callbacks SOLO si onBarcodeScanned está definido
+    // Si es undefined, significa que otro componente ya manejó el callback
+    if (onBarcodeScanned) {
+      barcodeReaderService.onBarcode((barcode: string) => {
+        setLastScannedBarcode(barcode);
+        setScannedCodes(prev => [{
+          code: barcode,
+          timestamp: new Date()
+        }, ...prev.slice(0, 9)]); // Mantener solo los últimos 10
+        
         onBarcodeScanned(barcode);
-      }
-    });
+      });
+    }
 
     barcodeReaderService.onConnection(() => {
       updateStatus();

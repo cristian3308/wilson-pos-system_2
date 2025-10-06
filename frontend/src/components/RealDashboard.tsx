@@ -118,12 +118,11 @@ export default function RealDashboard() {
         <motion.div variants={itemVariants} className="bg-gradient-to-r from-orange-400 to-orange-600 rounded-2xl shadow-xl p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-orange-100 text-sm">Órdenes de Lavado</p>
-              <p className="text-3xl font-bold">{data.metrics.completedServices || 0}</p>
+              <p className="text-orange-100 text-sm">Órdenes de Lavado Activas</p>
+              <p className="text-3xl font-bold">{data.metrics.activeWashes || 0}</p>
               <p className="text-orange-200 text-xs mt-1">
-                Básico: {data.carwashServices.find(s => s.name === 'Básico')?.value || 0} | 
-                Completo: {data.carwashServices.find(s => s.name === 'Completo')?.value || 0} | 
-                Premium: {data.carwashServices.find(s => s.name === 'Premium')?.value || 0}
+                Completadas hoy: {data.metrics.completedServices || 0} | 
+                En proceso: {data.metrics.activeWashes || 0}
               </p>
             </div>
             <SparklesIcon className="w-12 h-12 text-orange-200" />

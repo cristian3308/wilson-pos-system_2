@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { 
   ChartBarIcon, 
   CurrencyDollarIcon, 
@@ -14,7 +15,8 @@ import {
   SparklesIcon,
   QrCodeIcon,
   WrenchScrewdriverIcon,
-  CogIcon
+  CogIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 
 import { Card } from '@/components/ui/Card';
@@ -29,9 +31,11 @@ import ParqueaderoManagement from '@/components/ImprovedParqueaderoManagement';
 import CarwashManagement from '@/components/CarwashManagement';
 import WorkersManagement from '@/components/WorkersManagement';
 import BalanceDashboard from '@/components/BalanceDashboard';
+import MonthlySubscriptionManager from '@/components/MonthlySubscriptionManager';
 
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { getDualDB } from '@/lib/dualDatabase';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -58,7 +62,8 @@ const itemVariants = {
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'today' | 'week' | 'month'>('today');
-  const [activeTab, setActiveTab] = useState<'overview' | 'parking' | 'carwash' | 'workers' | 'balance'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'parking' | 'carwash' | 'subscriptions' | 'workers' | 'balance'>('overview');
+  const [expiringCount, setExpiringCount] = useState(0);
   const { data, isLoading, error, refreshData } = useDashboardData();
   const { isConnected, data: wsData } = useWebSocket();
 
@@ -68,6 +73,51 @@ export default function DashboardPage() {
       refreshData();
     }
   }, [wsData, refreshData]);
+
+  // Verificar suscripciones próximas a vencer
+  useEffect(() => {
+    const checkExpiringSubscriptions = async () => {
+      try {
+        const dualDB = getDualDB();
+        const expiring = await dualDB.getExpiringSubscriptions(3); // Próximos 3 días
+        
+        setExpiringCount(expiring?.length || 0);
+        
+        if (expiring && expiring.length > 0) {
+          expiring.forEach((sub: any) => {
+            const endDate = new Date(sub.endDate);
+            const today = new Date();
+            const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            
+            toast(
+              `⚠️ Suscripción de ${sub.clientName} (${sub.vehiclePlate}) vence en ${daysRemaining} día(s)`,
+              {
+                icon: '📅',
+                duration: 6000,
+                position: 'top-right',
+                style: {
+                  background: '#FEF3C7',
+                  color: '#92400E',
+                  border: '2px solid #F59E0B',
+                  fontWeight: '500'
+                }
+              }
+            );
+          });
+        }
+      } catch (error) {
+        console.error('Error verificando suscripciones:', error);
+      }
+    };
+
+    // Verificar al cargar la página
+    checkExpiringSubscriptions();
+    
+    // Verificar cada 30 minutos
+    const interval = setInterval(checkExpiringSubscriptions, 30 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   if (isLoading) {
     return (
@@ -111,6 +161,7 @@ export default function DashboardPage() {
     { id: 'balance', name: '💰 Balances', icon: CurrencyDollarIcon },
     { id: 'parking', name: 'Parqueadero', icon: TruckIcon },
     { id: 'carwash', name: 'Lavadero', icon: SparklesIcon },
+    { id: 'subscriptions', name: 'Clientes Mensuales', icon: CalendarIcon },
     { id: 'workers', name: 'Trabajadores', icon: UserGroupIcon },
     { id: 'admin', name: 'Admin', icon: CogIcon },
   ];
@@ -165,11 +216,12 @@ export default function DashboardPage() {
               <nav className="-mb-px flex space-x-8">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
+                  const showBadge = tab.id === 'subscriptions' && expiringCount > 0;
                   return (
                     <button
                       key={tab.id}
                       onClick={() => handleTabClick(tab.id)}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                      className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 relative ${
                         activeTab === tab.id
                           ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
@@ -177,6 +229,11 @@ export default function DashboardPage() {
                     >
                       <Icon className="w-5 h-5" />
                       {tab.name}
+                      {showBadge && (
+                        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500 text-xs font-bold text-white animate-pulse">
+                          {expiringCount}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -327,6 +384,7 @@ export default function DashboardPage() {
             {activeTab === 'balance' && <BalanceDashboard />}
             {activeTab === 'parking' && <ParqueaderoManagement />}
             {activeTab === 'carwash' && <CarwashManagement />}
+            {activeTab === 'subscriptions' && <MonthlySubscriptionManager />}
             {activeTab === 'workers' && <WorkersManagement />}
           </motion.div>
         </motion.div>

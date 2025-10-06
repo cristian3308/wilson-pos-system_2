@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { getDualDB, Worker, CarwashTransaction } from '@/lib/dualDatabase';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type PeriodType = 'daily' | 'weekly' | 'biweekly' | 'monthly';
 
@@ -154,28 +156,159 @@ const WorkerEarningsReport: React.FC = () => {
     }
   };
 
-  const exportToCSV = () => {
-    const { start, end } = calculateDateRange();
-    const headers = ['Trabajador', 'Total Ganado', 'Servicios', 'Promedio por Servicio'];
-    const rows = earnings.map(e => [
-      e.worker.name,
-      e.totalEarnings.toString(),
-      e.totalServices.toString(),
-      e.averagePerService.toFixed(2)
-    ]);
+  const exportToPDF = () => {
+    try {
+      const { start, end } = calculateDateRange();
+      const doc = new jsPDF();
 
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+      // Configuración de colores
+      const primaryColor: [number, number, number] = [37, 99, 235]; // Blue-600
+      const secondaryColor: [number, number, number] = [16, 185, 129]; // Green-500
+      const textColor: [number, number, number] = [31, 41, 55]; // Gray-800
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ganancias_trabajadores_${start.toISOString().split('T')[0]}_${end.toISOString().split('T')[0]}.csv`;
-    a.click();
-    toast.success('Reporte exportado exitosamente');
+      // Título del documento
+      doc.setFontSize(22);
+      doc.setTextColor(...primaryColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Wilson Cars & Wash', 105, 20, { align: 'center' });
+
+      // Subtítulo
+      doc.setFontSize(16);
+      doc.setTextColor(...textColor);
+      doc.text('Reporte de Ganancias del Personal', 105, 30, { align: 'center' });
+
+      // Información de filtros aplicados
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      
+      let yPos = 40;
+      doc.text(`Período: ${getPeriodLabel()}`, 20, yPos);
+      
+      if (startDate && endDate) {
+        yPos += 5;
+        doc.text(`Rango: ${new Date(startDate).toLocaleDateString('es-CO')} - ${new Date(endDate).toLocaleDateString('es-CO')}`, 20, yPos);
+      } else {
+        yPos += 5;
+        doc.text(`Rango: ${start.toLocaleDateString('es-CO')} - ${end.toLocaleDateString('es-CO')}`, 20, yPos);
+      }
+
+      yPos += 5;
+      const workerName = selectedWorkerId === 'all' 
+        ? 'Todos los trabajadores' 
+        : workers.find(w => w.id === selectedWorkerId)?.name || 'Desconocido';
+      doc.text(`Trabajador: ${workerName}`, 20, yPos);
+
+      yPos += 5;
+      doc.text(`Fecha de generación: ${new Date().toLocaleString('es-CO')}`, 20, yPos);
+
+      // Resumen general
+      yPos += 10;
+      doc.setFillColor(...secondaryColor);
+      doc.rect(20, yPos, 170, 25, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      
+      doc.text('Resumen General', 105, yPos + 6, { align: 'center' });
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      
+      // Columnas del resumen
+      const col1X = 35;
+      const col2X = 105;
+      const col3X = 160;
+      
+      doc.text('Total Ganado:', col1X - 10, yPos + 13);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatCurrency(totalEarnings), col1X - 10, yPos + 18);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text('Servicios:', col2X - 15, yPos + 13, { align: 'center' });
+      doc.setFont('helvetica', 'bold');
+      doc.text(totalServices.toString(), col2X - 15, yPos + 18, { align: 'center' });
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text('Promedio:', col3X - 15, yPos + 13, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.text(
+        formatCurrency(totalServices > 0 ? totalEarnings / totalServices : 0), 
+        col3X - 15, 
+        yPos + 18, 
+        { align: 'right' }
+      );
+
+      // Tabla de trabajadores
+      yPos += 30;
+      
+      const tableData = earnings.map(e => [
+        e.worker.name,
+        `${e.worker.percentage}%`,
+        e.totalServices.toString(),
+        formatCurrency(e.averagePerService),
+        formatCurrency(e.totalEarnings)
+      ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Trabajador', 'Comisión', 'Servicios', 'Promedio', 'Total Ganado']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: primaryColor,
+          textColor: [255, 255, 255],
+          fontSize: 10,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          fontSize: 9,
+          textColor: textColor
+        },
+        columnStyles: {
+          0: { cellWidth: 50, halign: 'left' },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 25, halign: 'center' },
+          3: { cellWidth: 40, halign: 'right' },
+          4: { cellWidth: 40, halign: 'right', fontStyle: 'bold' }
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251]
+        },
+        margin: { left: 20, right: 20 }
+      });
+
+      // Pie de página
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Página ${i} de ${pageCount}`,
+          105,
+          285,
+          { align: 'center' }
+        );
+        doc.text(
+          'Documento confidencial - Solo para uso interno',
+          105,
+          290,
+          { align: 'center' }
+        );
+      }
+
+      // Guardar PDF
+      const fileName = `Ganancias_Personal_${start.toISOString().split('T')[0]}_${end.toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+      toast.success('Reporte PDF exportado exitosamente');
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      toast.error('Error al exportar el reporte PDF');
+    }
   };
 
   const totalEarnings = earnings.reduce((sum, e) => sum + e.totalEarnings, 0);
@@ -201,11 +334,11 @@ const WorkerEarningsReport: React.FC = () => {
               </div>
             </div>
             <button
-              onClick={exportToCSV}
+              onClick={exportToPDF}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
             >
               <Download className="w-4 h-4" />
-              Exportar
+              Exportar PDF
             </button>
           </div>
         </motion.div>

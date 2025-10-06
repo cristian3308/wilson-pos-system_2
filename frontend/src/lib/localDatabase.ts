@@ -28,6 +28,7 @@ export interface CarwashService {
 export interface CarwashTransaction {
   id: string;
   ticketId: string;
+  barcode?: string; // ✅ NUEVO: Código de barras EAN-13
   placa: string;
   vehicleType: string;
   serviceName: string;
@@ -111,12 +112,33 @@ export interface BusinessConfig {
   updatedAt: Date;
 }
 
+// ✅ NUEVO: Interface para suscripciones mensuales
+export interface MonthlySubscription {
+  id: string;
+  vehiclePlate: string;
+  vehicleType: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail?: string;
+  subscriptionType: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom'; // Tipo de suscripción
+  customDays?: number; // Para suscripciones personalizadas
+  startDate: Date;
+  endDate: Date;
+  amount: number; // Monto pagado
+  isPaid: boolean;
+  isActive: boolean; // Se desactiva automáticamente cuando vence
+  paymentMethod?: 'cash' | 'card' | 'transfer';
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Clase principal para manejo de base de datos local
 class LocalDatabase {
   private db!: IDBPDatabase;
   private isInitialized = false;
   private dbName = 'POSLocalDatabase';
-  private version = 1;
+  private version = 2; // ✅ Incrementar versión para agregar nuevo object store
 
   // Inicializar IndexedDB
   async init(): Promise<void> {
@@ -174,11 +196,21 @@ class LocalDatabase {
             historyStore.createIndex('fecha', 'fecha', { unique: false });
             historyStore.createIndex('tipo', 'tipo', { unique: false });
           }
+
+          // ✅ NUEVO: Store para suscripciones mensuales
+          if (!db.objectStoreNames.contains('monthly_subscriptions')) {
+            const subscriptionStore = db.createObjectStore('monthly_subscriptions', { keyPath: 'id' });
+            subscriptionStore.createIndex('vehiclePlate', 'vehiclePlate', { unique: false });
+            subscriptionStore.createIndex('isActive', 'isActive', { unique: false });
+            subscriptionStore.createIndex('endDate', 'endDate', { unique: false });
+            subscriptionStore.createIndex('startDate', 'startDate', { unique: false });
+            subscriptionStore.createIndex('clientName', 'clientName', { unique: false });
+          }
         },
       });
 
       this.isInitialized = true;
-      console.log('✅ LocalDatabase inicializada correctamente');
+      // console.log('✅ LocalDatabase inicializada correctamente');
     } catch (error) {
       console.error('❌ Error inicializando LocalDatabase:', error);
       throw error;
@@ -219,7 +251,7 @@ class LocalDatabase {
   async saveParkingTicket(ticket: ParkingTicket): Promise<void> {
     await this.init();
     await this.db.put('parking_tickets', ticket);
-    console.log(`✅ Ticket de parqueadero guardado localmente: ${ticket.placa}`);
+    // console.log(`✅ Ticket de parqueadero guardado localmente: ${ticket.placa}`);
   }
 
   async getParkingTicket(ticketId: string): Promise<ParkingTicket | null> {
@@ -411,7 +443,7 @@ class LocalDatabase {
   async saveParkingRecord(record: any): Promise<void> {
     await this.init();
     await this.db.put('vehicle_history', record);
-    console.log(`✅ Registro de historial guardado localmente: ${record.placa}`);
+    // console.log(`✅ Registro de historial guardado localmente: ${record.placa}`);
   }
 
   async getParkingHistory(): Promise<any[]> {
@@ -643,6 +675,102 @@ class LocalDatabase {
 
     await this.saveBusinessConfig(updatedConfig);
     console.log(`✅ Tipo de vehículo eliminado: ${typeToDelete.name}`);
+  }
+
+  // === MÉTODOS PARA SUSCRIPCIONES MENSUALES ===
+  async saveMonthlySubscription(subscription: MonthlySubscription): Promise<void> {
+    await this.init();
+    await this.db.put('monthly_subscriptions', subscription);
+    console.log(`✅ Suscripción mensual guardada: ${subscription.clientName} - ${subscription.vehiclePlate}`);
+  }
+
+  async getMonthlySubscription(subscriptionId: string): Promise<MonthlySubscription | null> {
+    await this.init();
+    return (await this.db.get('monthly_subscriptions', subscriptionId)) || null;
+  }
+
+  async getAllMonthlySubscriptions(activeOnly = false): Promise<MonthlySubscription[]> {
+    await this.init();
+    const allSubscriptions = await this.db.getAll('monthly_subscriptions');
+    
+    if (activeOnly) {
+      return allSubscriptions.filter(sub => sub.isActive);
+    }
+    
+    return allSubscriptions;
+  }
+
+  async getActiveMonthlySubscriptions(): Promise<MonthlySubscription[]> {
+    await this.init();
+    const allSubscriptions = await this.db.getAll('monthly_subscriptions');
+    return allSubscriptions.filter(sub => sub.isActive);
+  }
+
+  async getSubscriptionByPlate(vehiclePlate: string): Promise<MonthlySubscription | null> {
+    await this.init();
+    const tx = this.db.transaction('monthly_subscriptions', 'readonly');
+    const index = tx.store.index('vehiclePlate');
+    const subscriptions = await index.getAll(vehiclePlate);
+    
+    // Retornar la suscripción activa más reciente
+    const activeSubs = subscriptions.filter(sub => sub.isActive);
+    if (activeSubs.length > 0) {
+      return activeSubs.sort((a, b) => 
+        new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
+      )[0];
+    }
+    
+    return null;
+  }
+
+  async getExpiringSubscriptions(daysBeforeExpiry = 3): Promise<MonthlySubscription[]> {
+    await this.init();
+    const allSubscriptions = await this.getActiveMonthlySubscriptions();
+    const now = new Date();
+    const expiryThreshold = new Date(now);
+    expiryThreshold.setDate(expiryThreshold.getDate() + daysBeforeExpiry);
+    
+    return allSubscriptions.filter(sub => {
+      const endDate = new Date(sub.endDate);
+      return endDate <= expiryThreshold && endDate >= now;
+    });
+  }
+
+  async updateMonthlySubscription(subscription: MonthlySubscription): Promise<void> {
+    await this.init();
+    subscription.updatedAt = new Date();
+    await this.db.put('monthly_subscriptions', subscription);
+    console.log(`✅ Suscripción actualizada: ${subscription.clientName} - ${subscription.vehiclePlate}`);
+  }
+
+  async deleteMonthlySubscription(subscriptionId: string): Promise<void> {
+    await this.init();
+    await this.db.delete('monthly_subscriptions', subscriptionId);
+    console.log(`✅ Suscripción eliminada: ${subscriptionId}`);
+  }
+
+  // Desactivar suscripciones vencidas automáticamente
+  async checkAndDeactivateExpiredSubscriptions(): Promise<number> {
+    await this.init();
+    const activeSubscriptions = await this.getActiveMonthlySubscriptions();
+    const now = new Date();
+    let deactivatedCount = 0;
+    
+    for (const subscription of activeSubscriptions) {
+      const endDate = new Date(subscription.endDate);
+      if (endDate < now && subscription.isActive) {
+        subscription.isActive = false;
+        subscription.updatedAt = new Date();
+        await this.updateMonthlySubscription(subscription);
+        deactivatedCount++;
+      }
+    }
+    
+    if (deactivatedCount > 0) {
+      console.log(`✅ ${deactivatedCount} suscripción(es) desactivada(s) automáticamente`);
+    }
+    
+    return deactivatedCount;
   }
 }
 

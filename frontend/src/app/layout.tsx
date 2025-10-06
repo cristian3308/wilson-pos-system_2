@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter, Fira_Code } from 'next/font/google';
 import { Providers } from '../components/providers/Providers';
 import { Toaster } from 'react-hot-toast';
+import { GlobalBarcodeScanner } from '../components/GlobalBarcodeScanner';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -131,6 +132,7 @@ export default function RootLayout({
           <div className="min-h-screen flex flex-col">
             {children}
           </div>
+          <GlobalBarcodeScanner />
           <Toaster
             position="top-right"
             toastOptions={{

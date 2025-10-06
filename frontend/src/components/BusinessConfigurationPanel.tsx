@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, Building2, DollarSign, Edit, Trash2, Eye, Car, Truck, Bike } from 'lucide-react';
+import { Settings, Save, Building2, DollarSign, Edit, Trash2, Eye, Car, Truck, Bike, Plus, Clock, X } from 'lucide-react';
 import { getDualDB, BusinessConfig } from '../lib/dualDatabase';
 import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
 import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
@@ -21,6 +21,16 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
   
   // Estado para tipos de vehículos personalizados
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeConfig[]>([]);
+
+  // 🧽 Estados para servicios de lavadero
+  const [carwashServices, setCarwashServices] = useState<any[]>([]);
+  const [newService, setNewService] = useState({
+    vehicleType: 'car',
+    serviceName: '',
+    basePrice: 0,
+    estimatedTime: 30
+  });
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
 
   // Estado de conexión simplificado (siempre local)
   const [connectionStatus] = useState({
@@ -48,6 +58,7 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
   useEffect(() => {
     loadConfiguration();
     loadVehicleTypes();
+    loadCarwashServices(); // 🧽 Cargar servicios del lavadero
   }, []);
   
   // Escuchar eventos de cambios en tipos de vehículos
@@ -108,6 +119,102 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
     } catch (error) {
       console.error('Error eliminando tipo de vehículo:', error);
       setMessage('❌ Error al eliminar: ' + (error as Error).message);
+    }
+  };
+
+  // 🧽 FUNCIONES PARA GESTIONAR SERVICIOS DEL LAVADERO
+  const loadCarwashServices = async () => {
+    try {
+      const dualDB = getDualDB();
+      const services = await dualDB.getAllCarwashServices();
+      setCarwashServices(services.filter(s => s.isActive));
+      console.log('✅ Servicios de lavadero cargados:', services.length);
+    } catch (error) {
+      console.error('Error cargando servicios de lavadero:', error);
+    }
+  };
+
+  const addCarwashService = async () => {
+    if (!newService.serviceName || newService.basePrice <= 0) {
+      setMessage('❌ Completa todos los campos del servicio');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+
+    try {
+      const dualDB = getDualDB();
+      const service = {
+        id: `service_${Date.now()}`,
+        vehicleType: newService.vehicleType,
+        serviceName: newService.serviceName,
+        basePrice: newService.basePrice,
+        estimatedTime: newService.estimatedTime,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      await dualDB.saveCarwashService(service);
+      await loadCarwashServices();
+      
+      // Resetear formulario
+      setNewService({
+        vehicleType: 'car',
+        serviceName: '',
+        basePrice: 0,
+        estimatedTime: 30
+      });
+      setShowAddServiceModal(false);
+      
+      setMessage('✅ Servicio agregado correctamente');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error agregando servicio:', error);
+      setMessage('❌ Error al agregar servicio');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const updateCarwashService = async (serviceId: string, field: string, value: any) => {
+    try {
+      const dualDB = getDualDB();
+      const service = carwashServices.find(s => s.id === serviceId);
+      if (!service) return;
+
+      const updatedService = {
+        ...service,
+        [field]: value,
+        updatedAt: new Date()
+      };
+
+      await dualDB.updateCarwashService(updatedService);
+      await loadCarwashServices();
+      
+      setMessage('✅ Servicio actualizado');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error actualizando servicio:', error);
+      setMessage('❌ Error al actualizar servicio');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
+  const deleteCarwashService = async (serviceId: string) => {
+    if (!confirm('¿Está seguro de eliminar este servicio?')) {
+      return;
+    }
+
+    try {
+      const dualDB = getDualDB();
+      await dualDB.deleteCarwashService(serviceId);
+      await loadCarwashServices();
+      
+      setMessage('✅ Servicio eliminado');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error eliminando servicio:', error);
+      setMessage('❌ Error al eliminar servicio');
+      setTimeout(() => setMessage(''), 3000);
     }
   };
 
@@ -503,33 +610,103 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
             </div>
             
             <div className="p-6 space-y-6">
+              {/* 🧽 Servicios Disponibles - DINÁMICOS */}
               <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-200">
-                <h4 className="font-semibold text-cyan-800 mb-3">💧 Servicios Disponibles</h4>
-                <div className="space-y-3">
-                  <div className="bg-white p-3 rounded border">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">🚗 Lavado Básico Carro</span>
-                      <span className="text-green-600 font-bold">$8,000</span>
-                    </div>
-                    <p className="text-xs text-gray-500">Lavado exterior básico</p>
-                  </div>
-                  <div className="bg-white p-3 rounded border">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">🏍️ Lavado Básico Moto</span>
-                      <span className="text-green-600 font-bold">$5,000</span>
-                    </div>
-                    <p className="text-xs text-gray-500">Lavado completo motocicleta</p>
-                  </div>
-                  <div className="bg-white p-3 rounded border">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">🚛 Lavado Básico Camión</span>
-                      <span className="text-green-600 font-bold">$25,000</span>
-                    </div>
-                    <p className="text-xs text-gray-500">Lavado exterior vehículo grande</p>
-                  </div>
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-semibold text-cyan-800 flex items-center gap-2">
+                    💧 Servicios Disponibles
+                    <span className="text-sm font-normal text-cyan-600">({carwashServices.length})</span>
+                  </h4>
+                  <button
+                    onClick={() => setShowAddServiceModal(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Agregar Servicio
+                  </button>
                 </div>
+                
+                {carwashServices.length === 0 ? (
+                  <div className="bg-white p-8 rounded-lg border-2 border-dashed border-cyan-300 text-center">
+                    <span className="text-4xl mb-3 block">🧽</span>
+                    <p className="text-gray-600 font-medium">No hay servicios configurados</p>
+                    <p className="text-sm text-gray-500 mt-1">Haz clic en "Agregar Servicio" para crear uno</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {carwashServices.map((service) => {
+                      const vehicleIcon = service.vehicleType === 'motorcycle' ? '🏍️' : 
+                                        service.vehicleType === 'truck' ? '🚛' : '🚗';
+                      
+                      return (
+                        <div key={service.id} className="bg-white p-4 rounded-lg border-2 border-cyan-200 hover:border-cyan-400 transition-all group">
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-2xl">{vehicleIcon}</span>
+                                <input
+                                  type="text"
+                                  value={service.serviceName}
+                                  onChange={(e) => updateCarwashService(service.id, 'serviceName', e.target.value)}
+                                  className="font-semibold text-gray-800 border-b-2 border-transparent hover:border-cyan-300 focus:border-cyan-500 focus:outline-none px-1 py-0.5 transition-colors"
+                                />
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <input
+                                    type="number"
+                                    value={service.estimatedTime}
+                                    onChange={(e) => updateCarwashService(service.id, 'estimatedTime', parseInt(e.target.value))}
+                                    className="w-12 border-b border-transparent hover:border-gray-300 focus:border-cyan-500 focus:outline-none text-center"
+                                  /> min
+                                </span>
+                                <span className="px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded text-xs font-medium">
+                                  {service.vehicleType === 'motorcycle' ? 'Moto' : 
+                                   service.vehicleType === 'truck' ? 'Camión' : 'Carro'}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-500 text-sm">$</span>
+                                  <input
+                                    type="number"
+                                    value={service.basePrice}
+                                    onChange={(e) => updateCarwashService(service.id, 'basePrice', parseInt(e.target.value))}
+                                    className="w-24 text-right font-bold text-green-600 text-lg border-b-2 border-transparent hover:border-green-300 focus:border-green-500 focus:outline-none px-1"
+                                  />
+                                </div>
+                                <p className="text-xs text-gray-500">Precio base</p>
+                              </div>
+                              
+                              <button
+                                onClick={() => deleteCarwashService(service.id)}
+                                className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                title="Eliminar servicio"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {carwashServices.length > 0 && (
+                  <div className="mt-4 p-3 bg-cyan-100 rounded-lg border border-cyan-300">
+                    <p className="text-sm text-cyan-800">
+                      💡 <strong>Tip:</strong> Haz clic en cualquier campo para editarlo en tiempo real
+                    </p>
+                  </div>
+                )}
               </div>
 
+              {/* ⚙️ Configuraciones del Lavadero */}
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <h4 className="font-semibold text-gray-800 mb-3">⚙️ Configuraciones del Lavadero</h4>
                 <div className="space-y-3">
@@ -1105,6 +1282,108 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 🧽 Modal para Agregar Servicio de Lavadero */}
+      {showAddServiceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+            <div className="bg-gradient-to-r from-cyan-500 to-teal-600 p-6 rounded-t-xl">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span className="text-2xl">🧽</span>
+                  Agregar Nuevo Servicio
+                </h2>
+                <button
+                  onClick={() => setShowAddServiceModal(false)}
+                  className="text-white hover:text-gray-200 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <p className="text-cyan-100 mt-2 text-sm">Configura un nuevo servicio de lavadero</p>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Tipo de Vehículo */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🚗 Tipo de Vehículo
+                </label>
+                <select
+                  value={newService.vehicleType}
+                  onChange={(e) => setNewService({...newService, vehicleType: e.target.value})}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                >
+                  <option value="car">🚗 Carro</option>
+                  <option value="motorcycle">🏍️ Moto</option>
+                  <option value="truck">🚛 Camión</option>
+                </select>
+              </div>
+
+              {/* Nombre del Servicio */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  ✨ Nombre del Servicio
+                </label>
+                <input
+                  type="text"
+                  value={newService.serviceName}
+                  onChange={(e) => setNewService({...newService, serviceName: e.target.value})}
+                  placeholder="Ej: Lavado Básico, Detallado Completo, etc."
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Precio Base */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  💰 Precio Base
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-lg">$</span>
+                  <input
+                    type="number"
+                    value={newService.basePrice}
+                    onChange={(e) => setNewService({...newService, basePrice: parseInt(e.target.value) || 0})}
+                    placeholder="0"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Tiempo Estimado */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  ⏱️ Tiempo Estimado (minutos)
+                </label>
+                <input
+                  type="number"
+                  value={newService.estimatedTime}
+                  onChange={(e) => setNewService({...newService, estimatedTime: parseInt(e.target.value) || 30})}
+                  placeholder="30"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowAddServiceModal(false)}
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={addCarwashService}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-teal-600 text-white rounded-lg hover:from-cyan-600 hover:to-teal-700 font-bold transition-all shadow-lg hover:shadow-xl"
+                >
+                  ✅ Agregar Servicio
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Edición */}
       {editModalOpen && editingRecord && (

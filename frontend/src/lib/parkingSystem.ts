@@ -32,10 +32,24 @@ class ParkingSystem {
     return `ticket-${timestamp}-${random}`;
   }
 
-  // Generar barcode único
+  // Generar barcode único en formato EAN-13
   private generateBarcode(): string {
     const timestamp = Date.now();
-    return `WCW${timestamp}`;
+    // Usar solo los últimos 12 dígitos del timestamp
+    const base = timestamp.toString().slice(-12).padStart(12, '0');
+    
+    // Calcular check digit EAN-13 estándar
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      const weight = (i % 2 === 0) ? 1 : 3;
+      sum += parseInt(base[i]) * weight;
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    
+    // Retornar EAN-13 completo (13 dígitos)
+    const ean13 = base + checkDigit;
+    console.log('🔢 EAN-13 generado para ticket:', ean13);
+    return ean13;
   }
 
   // Procesar entrada de vehículo (nueva función completa)
@@ -62,7 +76,7 @@ class ParkingSystem {
     const ticketId = this.generateUniqueId();
     const barcode = this.generateBarcode();
     
-    console.log('🔍 DEBUG parkingSystem.processEntry - vehicleType recibido:', vehicleType);
+    console.log('✅ Ticket:', placa.toUpperCase(), '| Barcode:', barcode);
     
     // Ya no mapeamos, usamos el tipo tal cual viene (puede ser 'car', 'motorcycle', 'truck' o un ID personalizado)
     const ticket: ParkingTicket = {
@@ -78,13 +92,10 @@ class ParkingSystem {
       createdAt: now,
       updatedAt: now
     };
-    
-    console.log('✅ Ticket creado con vehicleType:', ticket.vehicleType);
 
     // Guardar ticket de forma segura
     await this.saveTicketSecure(ticket);
     
-    console.log(`✅ Entrada procesada: ${placa} - ID: ${ticketId} - Barcode: ${barcode}`);
     return ticket;
   }
 
@@ -420,19 +431,15 @@ class ParkingSystem {
 
   // Calcular monto final basado en tiempo
   private calculateFinalAmount(basePrice: number, timeSpent: any): number {
-    const hourlyRate = basePrice;
+    const hourlyRate = basePrice; // Precio por hora (ej: $2000/hora)
+    const pricePerMinute = hourlyRate / 60; // Precio por minuto (ej: $2000/60 = $33.33/min)
     
-    // Mínimo 1 fracción (15 minutos)
-    if (timeSpent.totalMinutes <= 15) {
-      return Math.ceil(hourlyRate * 0.25); // 25% de la hora
-    }
+    // Calcular el costo exacto basado en minutos
+    const totalCost = Math.ceil(timeSpent.totalMinutes * pricePerMinute);
     
-    // Calcular fracciones de 15 minutos
-    const fractions = Math.ceil(timeSpent.totalMinutes / 15);
-    return Math.ceil((fractions * hourlyRate * 0.25));
-  }
-
-  // Convertir tipo de vehículo a español
+    // Mínimo cobro: 1 minuto
+    return totalCost > 0 ? totalCost : Math.ceil(pricePerMinute);
+  }  // Convertir tipo de vehículo a español
   private getVehicleTypeInSpanish(vehicleType: string): string {
     const types = {
       car: 'Carro',
@@ -481,7 +488,7 @@ class ParkingSystem {
       index === array.findIndex(t => t.placa === ticket.placa)
     );
     
-    console.log(`🎯 Tickets activos filtrados: ${tickets.length} -> ${reallyActiveTickets.length} -> ${uniqueTickets.length} únicos`);
+    // console.log(`🎯 Tickets activos filtrados: ${tickets.length} -> ${reallyActiveTickets.length} -> ${uniqueTickets.length} únicos`);
     return uniqueTickets;
   }
 
@@ -503,7 +510,7 @@ class ParkingSystem {
         ticket.status === 'completed'
       );
 
-      console.log(`🧹 Limpiando ${completedTickets.length} tickets completados...`);
+      // console.log(`🧹 Limpiando ${completedTickets.length} tickets completados...`);
 
       // Forzar actualización de cada ticket completado
       for (const ticket of completedTickets) {
@@ -603,7 +610,7 @@ class ParkingSystem {
         vehicleBreakdown[vehicleType].revenue += (record.cobro || 0);
       });
 
-      console.log(`💰 Ingresos diarios ${targetDate}: $${totalRevenue.toLocaleString()} (${vehicleCount} vehículos)`);
+      // console.log(`💰 Ingresos diarios ${targetDate}: $${totalRevenue.toLocaleString()} (${vehicleCount} vehículos)`);
 
       return {
         date: targetDate,
@@ -652,14 +659,14 @@ class ParkingSystem {
   async debugTicketStatus(): Promise<void> {
     try {
       const allTickets = await dualDatabase.getParkingTickets();
-      console.log('🔍 DEBUG - Estado de todos los tickets:');
+      // console.log('🔍 DEBUG - Estado de todos los tickets:');
       
-      allTickets.forEach((ticket, index) => {
-        console.log(`${index + 1}. ${ticket.placa} - Status: ${ticket.status} - Paid: ${ticket.isPaid} - Exit: ${ticket.exitTime ? 'SÍ' : 'NO'}`);
-      });
+      // allTickets.forEach((ticket, index) => {
+      //   console.log(`${index + 1}. ${ticket.placa} - Status: ${ticket.status} - Paid: ${ticket.isPaid} - Exit: ${ticket.exitTime ? 'SÍ' : 'NO'}`);
+      // });
       
       const activeTickets = await this.getActiveTickets();
-      console.log(`📋 Total tickets en DB: ${allTickets.length}, Activos filtrados: ${activeTickets.length}`);
+      // console.log(`📋 Total tickets en DB: ${allTickets.length}, Activos filtrados: ${activeTickets.length}`);
       
     } catch (error) {
       console.error('❌ Error en debug:', error);

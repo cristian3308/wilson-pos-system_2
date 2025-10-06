@@ -13,6 +13,7 @@ interface ServicioLavadero {
 interface OrdenLavadero {
   id: string;
   numeroOrden: string;
+  barcode?: string; // ✅ NUEVO: Código de barras EAN-13
   placaVehiculo: string;
   servicios: ServicioLavadero[];
   estado: 'pendiente' | 'en_proceso' | 'completado' | 'cancelado';
@@ -27,6 +28,7 @@ interface OrdenLavadero {
   total: number;
   tiempoEstimado: number;
   trabajadorAsignado?: string;
+  trabajadorPorcentaje?: number; // ✅ NUEVO: % de ganancia del trabajador (ej: 60%)
 }
 
 const serviciosDisponibles: ServicioLavadero[] = [
@@ -84,6 +86,249 @@ export const LavaderoManagement: React.FC = () => {
   const [ordenes, setOrdenes] = useState<OrdenLavadero[]>([]);
   const [mode, setMode] = useState<'crear' | 'gestionar' | 'historial'>('crear');
   const [loading, setLoading] = useState(false);
+
+  // ✅ NUEVO: Estado para buffer del escáner
+  const [barcodeBuffer, setBarcodeBuffer] = useState('');
+  const barcodeTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // ✅ NUEVO: Generar código de barras EAN-13 (igual que parqueadero)
+  const generateBarcode = (): string => {
+    const timestamp = Date.now();
+    const base = timestamp.toString().slice(-12).padStart(12, '0');
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      const weight = (i % 2 === 0) ? 1 : 3;
+      sum += parseInt(base[i]) * weight;
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    return base + checkDigit;
+  };
+
+  // ✅ NUEVO: Manejar escaneo de código de barras
+  const handleBarcodeScanned = async (barcode: string) => {
+    console.log('\n========== ESCANEO LAVADERO ==========');
+    console.log('🧼 Código escaneado:', barcode);
+
+    // Buscar la orden por código de barras
+    const orden = ordenes.find(o => o.barcode === barcode);
+
+    if (!orden) {
+      alert('❌ Orden no encontrada');
+      return;
+    }
+
+    console.log('📋 Orden encontrada:', orden);
+
+    // Verificar estado
+    if (orden.estado === 'pendiente' || orden.estado === 'en_proceso') {
+      // ❌ Todavía no está completado
+      alert(`⚠️ COCHE NO LAVADO TODAVIA\n\nOrden: ${orden.numeroOrden}\nEstado: ${orden.estado}\nPlaca: ${orden.placaVehiculo}\n\nPor favor, complete el servicio primero.`);
+      return;
+    }
+
+    if (orden.estado === 'completado') {
+      // ✅ Está completado, generar factura
+      console.log('✅ Orden completada, generando factura...');
+      generarFacturaLavado(orden);
+      
+      // Actualizar orden para marcarla como facturada
+      setOrdenes(prev => prev.map(o => 
+        o.id === orden.id ? { ...o, estado: 'cancelado' as const } : o
+      ));
+      
+      return;
+    }
+
+    if (orden.estado === 'cancelado') {
+      alert('ℹ️ Esta orden ya fue facturada anteriormente');
+      return;
+    }
+  };
+
+  // ✅ NUEVO: Generar factura de lavado con ganancias del trabajador
+  const generarFacturaLavado = (orden: OrdenLavadero) => {
+    const trabajadorGanancia = Math.ceil(orden.total * ((orden.trabajadorPorcentaje || 60) / 100));
+    const negocioGanancia = orden.total - trabajadorGanancia;
+
+    // Crear contenido de la factura
+    const facturaHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>FACTURA LAVADERO - ${orden.numeroOrden}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px;
+            width: 58mm;
+        }
+        .ticket { text-align: center; }
+        .header { border-top: 3px solid black; border-bottom: 3px solid black; padding: 15px 0; margin-bottom: 18px; }
+        .company-name { font-size: 21px; margin-bottom: 10px; }
+        .company-subtitle { font-size: 19px; margin-bottom: 8px; }
+        .nit { font-size: 16px; }
+        .ticket-type { font-size: 18px; margin: 15px 0; font-weight: bold; }
+        .info-line { display: flex; justify-content: space-between; margin: 8px 0; font-size: 17px; }
+        .separator { border-top: 2px dashed black; margin: 15px 0; }
+        .total-section { margin: 20px 0; }
+        .total-label { font-size: 18px; margin-bottom: 10px; }
+        .total-amount { font-size: 24px; margin: 10px 0; }
+        .ganancia { font-size: 18px; margin: 8px 0; color: #2563eb; }
+        .footer { margin-top: 20px; font-size: 18px; }
+        .footer-message { font-weight: bold; margin-bottom: 6px; }
+        .footer-info { margin: 5px 0; line-height: 1.7; }
+    </style>
+</head>
+<body>
+    <div class="ticket">
+        <div class="header">
+            <div class="company-name">WILSON CARS & WASH</div>
+            <div class="company-subtitle">SERVICIO DE LAVADO</div>
+            <div class="nit">NIT: 19.475.534-7</div>
+        </div>
+        
+        <div class="ticket-type">*** FACTURA LAVADO ***</div>
+        
+        <div class="info-line">
+            <span>Orden:</span>
+            <span>${orden.numeroOrden}</span>
+        </div>
+        
+        <div class="info-line">
+            <span>Placa:</span>
+            <span>${orden.placaVehiculo}</span>
+        </div>
+        
+        <div class="info-line">
+            <span>Fecha:</span>
+            <span>${new Date(orden.horaFinalizacion || orden.horaCreacion).toLocaleDateString('es-CO')}</span>
+        </div>
+        
+        <div class="separator"></div>
+        
+        <div style="text-align: left; margin: 10px 0;">
+            <strong>Servicios:</strong><br>
+            ${orden.servicios.map(s => `${s.icono} ${s.nombre}: $${s.precio.toLocaleString('es-CO')}`).join('<br>')}
+        </div>
+        
+        <div class="separator"></div>
+        
+        <div class="total-section">
+            <div class="total-label">TOTAL</div>
+            <div class="total-amount">$${orden.total.toLocaleString('es-CO')}</div>
+            
+            <div class="separator"></div>
+            
+            <div class="ganancia">
+                💰 Trabajador (${orden.trabajadorPorcentaje || 60}%): $${trabajadorGanancia.toLocaleString('es-CO')}
+            </div>
+            <div class="ganancia" style="color: #16a34a;">
+                🏢 Negocio (${100 - (orden.trabajadorPorcentaje || 60)}%): $${negocioGanancia.toLocaleString('es-CO')}
+            </div>
+        </div>
+        
+        <div class="separator"></div>
+        
+        <div class="footer">
+            <div class="footer-message">GRACIAS POR SU PREFERENCIA</div>
+            <div class="footer-info">
+                Calle 123 #45-67, Bogotá D.C.<br>
+                Tel: +57 (1) 234-5678<br>
+                info@wilsoncarwash.com<br>
+                Horario: 24/7 | Servicio completo
+            </div>
+            <div style="margin-top: 10px; font-size: 18px;">
+                ${new Date().toLocaleString('es-CO')}<br>
+                ID: ${orden.id.substring(0, 8)}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        window.onload = function() {
+            setTimeout(() => {
+                window.print();
+                window.close();
+            }, 500);
+        }
+    </script>
+</body>
+</html>
+    `;
+
+    // Abrir en nueva ventana e imprimir
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(facturaHTML);
+      printWindow.document.close();
+    }
+
+    // Mostrar notificación de éxito
+    alert(`✅ Factura generada!\n\n${orden.numeroOrden}\nPlaca: ${orden.placaVehiculo}\nTotal: $${orden.total.toLocaleString('es-CO')}\n\n💰 Trabajador: $${trabajadorGanancia.toLocaleString('es-CO')}\n🏢 Negocio: $${negocioGanancia.toLocaleString('es-CO')}`);
+  };
+
+  // ✅ NUEVO: Listener del teclado para detectar escaneos (LOCAL - respaldo)
+  useEffect(() => {
+    console.log('🧼 LAVADERO: Listener de teclado LOCAL activado (respaldo)');
+    
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ignorar si está escribiendo en un input o textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Detectar Enter (fin del escaneo)
+      if (e.key === 'Enter') {
+        console.log(`🧼 LAVADERO Enter detectado. Buffer length: ${barcodeBuffer.length}, contenido: "${barcodeBuffer}"`);
+        
+        if (barcodeBuffer.length === 13) {
+          console.log('🔍 LAVADERO: Código completo de 13 dígitos:', barcodeBuffer);
+          handleBarcodeScanned(barcodeBuffer);
+        } else if (barcodeBuffer.length >= 10) {
+          console.log('⚠️ LAVADERO: Código de longitud incorrecta, esperaba 13, recibió:', barcodeBuffer.length);
+          // Intentar procesar de todos modos
+          handleBarcodeScanned(barcodeBuffer);
+        }
+        
+        setBarcodeBuffer('');
+        if (barcodeTimerRef.current) {
+          clearTimeout(barcodeTimerRef.current);
+        }
+        return;
+      }
+
+      // Acumular dígitos
+      if (/^\d$/.test(e.key)) {
+        const newBuffer = barcodeBuffer + e.key;
+        console.log(`🧼 LAVADERO Dígito: ${e.key}, Buffer: ${newBuffer}`);
+        setBarcodeBuffer(newBuffer);
+        
+        // Limpiar buffer después de 100ms si no hay más input
+        if (barcodeTimerRef.current) {
+          clearTimeout(barcodeTimerRef.current);
+        }
+        barcodeTimerRef.current = setTimeout(() => {
+          console.log('⏱️ LAVADERO: Timeout - limpiando buffer');
+          setBarcodeBuffer('');
+        }, 100);
+      }
+    };
+
+    window.addEventListener('keypress', handleKeyPress);
+    
+    return () => {
+      console.log('🧼 LAVADERO: Listener de teclado desactivado');
+      window.removeEventListener('keypress', handleKeyPress);
+      if (barcodeTimerRef.current) {
+        clearTimeout(barcodeTimerRef.current);
+      }
+    };
+  }, [barcodeBuffer, ordenes]);
 
   // Formulario de nueva orden
   const [nuevaOrden, setNuevaOrden] = useState({
@@ -155,9 +400,19 @@ export const LavaderoManagement: React.FC = () => {
         nuevaOrden.serviciosSeleccionados.includes(s.id)
       );
 
+      // ✅ Generar código de barras EAN-13
+      const barcode = generateBarcode();
+      console.log('🔢 EAN-13 generado para orden de lavado:', barcode, `(${barcode.length} dígitos)`);
+      
+      // Verificar que tenga exactamente 13 dígitos
+      if (barcode.length !== 13) {
+        console.error('⚠️ ERROR: Código de barras no tiene 13 dígitos!');
+      }
+
       const ordenCompleta: OrdenLavadero = {
         id: Date.now().toString(),
         numeroOrden: `LV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(ordenes.length + 1).padStart(3, '0')}`,
+        barcode: barcode, // ✅ NUEVO: Guardar código de barras
         placaVehiculo: nuevaOrden.placaVehiculo.toUpperCase(),
         servicios: serviciosOrden,
         estado: 'pendiente',
@@ -165,7 +420,8 @@ export const LavaderoManagement: React.FC = () => {
         cliente: nuevaOrden.cliente.nombre ? nuevaOrden.cliente : undefined,
         observaciones: nuevaOrden.observaciones,
         total: calcularTotal(),
-        tiempoEstimado: calcularTiempoEstimado()
+        tiempoEstimado: calcularTiempoEstimado(),
+        trabajadorPorcentaje: 60 // ✅ NUEVO: 60% para el trabajador, 40% para el negocio
       };
 
       setOrdenes([...ordenes, ordenCompleta]);

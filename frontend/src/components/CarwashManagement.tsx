@@ -148,6 +148,21 @@ const CarwashManagement: React.FC = () => {
     };
   }, []);
 
+  // 🔄 Escuchar eventos de actualización de órdenes del lavadero (desde el scanner)
+  useEffect(() => {
+    const handleCarwashOrderUpdate = (barcode: string) => {
+      console.log('📢 Evento CARWASH_ORDER_UPDATED recibido en CarwashManagement, código:', barcode);
+      console.log('🔄 Refrescando datos de transacciones...');
+      loadData(); // Recargar todas las transacciones para actualizar la UI
+    };
+
+    appEvents.on(APP_EVENTS.CARWASH_ORDER_UPDATED, handleCarwashOrderUpdate);
+
+    return () => {
+      appEvents.off(APP_EVENTS.CARWASH_ORDER_UPDATED, handleCarwashOrderUpdate);
+    };
+  }, []); // Sin dependencias para que loadData use la referencia más reciente
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -248,9 +263,27 @@ const CarwashManagement: React.FC = () => {
       // Generar ticket ID automático
       const autoTicketId = `LAV${Date.now().toString().slice(-6)}`;
 
+      // ✅ Generar código de barras EAN-13 ANTES de crear la transacción
+      const generateEAN13 = (code: string): string => {
+        const numbers = code.replace(/\D/g, '');
+        const base = (numbers + Date.now().toString().slice(-6)).padStart(12, '0').substring(0, 12);
+        
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+          const weight = (i % 2 === 0) ? 1 : 3;
+          sum += parseInt(base[i]) * weight;
+        }
+        const checkDigit = (10 - (sum % 10)) % 10;
+        return base + checkDigit;
+      };
+      
+      const barcode = generateEAN13(autoTicketId);
+      console.log('🔢 Código de barras generado:', barcode, `(${barcode.length} dígitos) para ticket ${autoTicketId}`);
+
       const transactionData = {
         id: transactionId,
         ticketId: autoTicketId,
+        barcode: barcode, // ✅ NUEVO: Incluir código de barras en la transacción
         placa: newOrderData.placa.toUpperCase(),
         vehicleType: newOrderData.vehicleType,
         serviceName: selectedService.serviceName,
@@ -705,7 +738,7 @@ const CarwashManagement: React.FC = () => {
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit ${getStatusColor(transaction.status)}`}>
                           {getStatusIcon(transaction.status)}
-                          {transaction.status === 'completed' ? 'Completado' : 'Cancelado'}
+                          {transaction.status === 'completed' || transaction.status === 'cancelled' ? 'Completado' : transaction.status === 'in_progress' ? 'En Proceso' : 'Pendiente'}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-600">

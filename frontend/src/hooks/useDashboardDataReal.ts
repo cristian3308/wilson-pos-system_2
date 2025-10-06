@@ -7,11 +7,14 @@ interface DashboardData {
     totalRevenue: number;
     parkingRevenue: number;
     carwashRevenue: number;
+    subscriptionRevenue: number;
     activeSpots: number;
     completedServices: number;
     activeEmployees: number;
     activeWashes: number;
     totalVehicles: number;
+    activeSubscriptions: number;
+    expiringSubscriptions: number;
   };
   revenueData: Array<{
     date: string;
@@ -96,40 +99,79 @@ export const useDashboardDataReal = () => {
       setIsLoading(true);
       setError(null);
 
-      // Cargar datos del parqueadero y lavadero
-      const [parkingTickets, parkingHistory, carwashTransactions] = await Promise.all([
+      // Cargar datos del parqueadero, lavadero y suscripciones
+      const [parkingTickets, parkingHistory, carwashTransactions, monthlySubscriptions] = await Promise.all([
         dualDatabase.getParkingTickets(),
         dualDatabase.getParkingHistory(),
-        dualDatabase.getAllCarwashTransactions()
+        dualDatabase.getAllCarwashTransactions(),
+        dualDatabase.getAllMonthlySubscriptions()
       ]);
 
-      console.log('📊 Datos cargados:', { 
-        tickets: parkingTickets?.length || 0, 
-        history: parkingHistory?.length || 0,
-        carwash: carwashTransactions?.length || 0 
-      });
+      // console.log('📊 Datos cargados:', { 
+      //   tickets: parkingTickets?.length || 0, 
+      //   history: parkingHistory?.length || 0,
+      //   carwash: carwashTransactions?.length || 0 
+      // });
 
-      // Calcular métricas del parqueadero
-      const activeSpots = parkingTickets?.length || 0;
+      // Calcular métricas del parqueadero - SOLO tickets realmente activos
+      const activeSpots = parkingTickets?.filter((t: any) => 
+        t.status === 'active' && !t.isPaid && !t.exitTime
+      )?.length || 0;
       const totalVehicles = parkingHistory?.length || 0;
       const parkingRevenue = await calculateTodayRevenue();
 
       // Calcular métricas del lavadero
       const today = new Date().toISOString().split('T')[0];
-      const activeWashes = carwashTransactions?.filter((o: any) => o.status === 'in_progress')?.length || 0;
-      const completedServices = carwashTransactions?.filter((o: any) => o.status === 'completed')?.length || 0;
+      // ✅ ACTUALIZADO: Filtrar SOLO órdenes ACTIVAS (pendiente + en_proceso)
+      // EXCLUIR: completed y cancelled (facturado)
+      const activeWashes = carwashTransactions?.filter((o: any) => {
+        const status = o.status || o.estado;
+        return status === 'pending' || status === 'in_progress' || 
+               status === 'pendiente' || status === 'en_proceso';
+      })?.length || 0;
+      
+      console.log('📊 DASHBOARD - Total transacciones lavadero:', carwashTransactions?.length);
+      console.log('📊 DASHBOARD - Órdenes activas:', activeWashes);
+      carwashTransactions?.forEach((o: any) => {
+        console.log(`   - ${o.ticketId}: ${o.status || o.estado} (placa: ${o.placa})`);
+      });
+      const completedServices = carwashTransactions?.filter((o: any) => 
+        (o.status === 'completed' || o.estado === 'completado')
+      )?.length || 0;
       
       // Calcular ingresos del lavadero SOLO DEL DÍA DE HOY
       const carwashRevenue = carwashTransactions
         ?.filter((o: any) => {
-          const isCompleted = o.status === 'completed';
-          const transactionDate = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : null;
+          const isCompleted = (o.status === 'completed' || o.estado === 'completado');
+          const transactionDate = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : 
+                                 o.horaCreacion ? new Date(o.horaCreacion).toISOString().split('T')[0] : null;
           const isToday = transactionDate === today;
           return isCompleted && isToday;
         })
-        ?.reduce((total: number, o: any) => total + (o.basePrice || 0), 0) || 0;
+        ?.reduce((total: number, o: any) => total + (o.basePrice || o.total || 0), 0) || 0;
       
-      console.log('💰 Ingresos de lavadero HOY:', carwashRevenue);
+      // console.log('💰 Ingresos de lavadero HOY:', carwashRevenue);
+
+      // Calcular métricas de suscripciones mensuales
+      const activeSubscriptions = monthlySubscriptions?.filter((sub: any) => sub.isActive)?.length || 0;
+      
+      // Suscripciones que vencen en los próximos 3 días
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+      const expiringSubscriptions = monthlySubscriptions?.filter((sub: any) => {
+        if (!sub.isActive) return false;
+        const endDate = new Date(sub.endDate);
+        const now = new Date();
+        return endDate > now && endDate <= threeDaysFromNow;
+      })?.length || 0;
+
+      // Calcular ingresos de suscripciones SOLO DEL DÍA DE HOY
+      const subscriptionRevenue = monthlySubscriptions
+        ?.filter((sub: any) => {
+          const createdDate = sub.createdAt ? new Date(sub.createdAt).toISOString().split('T')[0] : null;
+          return createdDate === today;
+        })
+        ?.reduce((total: number, sub: any) => total + (sub.amount || 0), 0) || 0;
 
       // Distribución de vehículos
       const vehicleTypes = parkingHistory?.reduce((acc: any, v: any) => {
@@ -157,36 +199,86 @@ export const useDashboardDataReal = () => {
         color: ['#8B5CF6', '#F59E0B', '#10B981'][index % 3]
       }));
 
-      // Actividad reciente
-      const recentActivities = [
-        // Actividades del parqueadero
-        ...(parkingHistory?.slice(-10).map((v: any) => {
-          // Usar fecha de salida si existe y el estado es Completado/Salió, sino fecha de entrada
-          const isCompleted = v.estado === 'Completado' || v.estado === 'Salió' || v.estado === 'salio';
-          const timeToUse = isCompleted && v.fechaSalida ? v.fechaSalida : v.fechaEntrada;
-          const description = isCompleted ? `Vehículo salió - ${v.placa}` : `Vehículo ingresó - ${v.placa}`;
-          
-          return {
-            id: `parking-${v.id || v.barcode || Date.now()}`,
-            type: 'parking' as const,
-            description,
-            time: formatTimeAgo(timeToUse),
-            amount: isCompleted ? v.cobro : undefined,
-            status: isCompleted ? 'completed' as const : 'pending' as const,
-            user: v.placa
-          };
-        }) || []),
-        // Actividades del lavadero
-        ...(carwashTransactions?.slice(-5).map((o: any) => ({
+      // ✅ Actividad reciente SEPARADA con información DETALLADA
+      const parkingActivities = parkingHistory?.slice(-10).reverse().map((v: any) => {
+        const isCompleted = v.estado === 'Completado' || v.estado === 'Salió' || v.estado === 'salio';
+        const timeToUse = isCompleted && v.fechaSalida ? v.fechaSalida : v.fechaEntrada;
+        const tipoVehiculo = v.tipo || 'Desconocido';
+        const duracion = v.tiempo ? ` (${v.tiempo})` : '';
+        
+        let description = '';
+        if (isCompleted) {
+          description = `🚗 SALIDA - ${v.placa} (${tipoVehiculo})${duracion}`;
+        } else {
+          description = `🚗 INGRESO - ${v.placa} (${tipoVehiculo})`;
+        }
+        
+        return {
+          id: `parking-${v.id || v.barcode || Date.now()}`,
+          type: 'parking' as const,
+          description,
+          time: formatTimeAgo(timeToUse),
+          amount: isCompleted ? v.cobro : undefined,
+          status: isCompleted ? 'completed' as const : 'pending' as const,
+          user: v.placa,
+          details: {
+            placa: v.placa,
+            tipo: tipoVehiculo,
+            entrada: v.fechaEntrada,
+            salida: v.fechaSalida,
+            tiempo: v.tiempo,
+            cobro: v.cobro
+          }
+        };
+      }) || [];
+
+      const carwashActivities = carwashTransactions?.slice(-10).reverse().map((o: any) => {
+        const status = o.status || 'pending';
+        const serviceName = o.serviceName || 'Lavado';
+        const placa = o.vehiclePlate || o.placa || 'Sin placa';
+        const numero = o.transactionNumber || o.numeroOrden || '';
+        
+        let statusEmoji = '';
+        let statusText = '';
+        if (status === 'completed' || status === 'completado') {
+          statusEmoji = '✅';
+          statusText = 'COMPLETADO';
+        } else if (status === 'in_progress' || status === 'en_proceso') {
+          statusEmoji = '🔄';
+          statusText = 'EN PROCESO';
+        } else if (status === 'cancelled' || status === 'cancelado') {
+          statusEmoji = '💵';
+          statusText = 'FACTURADO';
+        } else {
+          statusEmoji = '⏳';
+          statusText = 'PENDIENTE';
+        }
+        
+        const description = `${statusEmoji} ${statusText} - ${numero} - ${placa} (${serviceName})`;
+        
+        return {
           id: `carwash-${o.id}`,
           type: 'carwash' as const,
-          description: `${o.serviceName || 'Lavado'} - ${o.placa}`,
-          time: formatTimeAgo(o.createdAt),
-          amount: o.status === 'completed' ? o.basePrice : undefined,
-          status: o.status === 'completed' ? 'completed' as const : 
-                  o.status === 'in_progress' ? 'pending' as const : 'cancelled' as const,
-          user: o.placa
-        })) || [])
+          description,
+          time: formatTimeAgo(o.createdAt || o.horaCreacion),
+          amount: (status === 'completed' || status === 'cancelled') ? (o.totalAmount || o.basePrice || o.total) : undefined,
+          status: (status === 'completed' || status === 'completado') ? 'completed' as const : 
+                  (status === 'in_progress' || status === 'en_proceso') ? 'pending' as const : 'cancelled' as const,
+          user: placa,
+          details: {
+            numero: numero,
+            placa: placa,
+            servicio: serviceName,
+            estado: statusText,
+            monto: o.totalAmount || o.basePrice || o.total,
+            fecha: o.createdAt || o.horaCreacion
+          }
+        };
+      }) || [];
+
+      const recentActivities = [
+        ...parkingActivities,
+        ...carwashActivities
       ].sort((a, b) => {
         // Ordenar por fecha más reciente primero
         try {
@@ -199,7 +291,7 @@ export const useDashboardDataReal = () => {
       }).slice(0, 8);
 
       // Datos de ingresos por semana (simulados basados en datos reales)
-      const totalRevenue = parkingRevenue + carwashRevenue;
+      const totalRevenue = parkingRevenue + carwashRevenue + subscriptionRevenue;
       const revenueData = [
         { date: 'Lun', revenue: Math.round(totalRevenue * 0.8), parking: Math.round(parkingRevenue * 0.8), carwash: Math.round(carwashRevenue * 0.8) },
         { date: 'Mar', revenue: Math.round(totalRevenue * 0.9), parking: Math.round(parkingRevenue * 0.9), carwash: Math.round(carwashRevenue * 0.9) },
@@ -232,11 +324,14 @@ export const useDashboardDataReal = () => {
           totalRevenue,
           parkingRevenue,
           carwashRevenue,
+          subscriptionRevenue,
           activeSpots,
           completedServices,
           activeEmployees,
           activeWashes,
-          totalVehicles
+          totalVehicles,
+          activeSubscriptions,
+          expiringSubscriptions
         },
         revenueData,
         occupancyData,

@@ -8,7 +8,8 @@ export type {
   CarwashTransaction,
   Vehicle,
   ParkingTicket,
-  BusinessConfig
+  BusinessConfig,
+  MonthlySubscription // ✅ Agregar tipo de suscripción
 } from './localDatabase';
 
 // Clase wrapper para mantener compatibilidad con el código existente
@@ -140,6 +141,43 @@ class DualDatabase {
 
   async getParkingHistory(): Promise<any[]> {
     return await this.localDb.getParkingHistory();
+  }
+
+  // === MÉTODOS PARA SUSCRIPCIONES MENSUALES ===
+  async saveMonthlySubscription(subscription: any): Promise<void> {
+    return await this.localDb.saveMonthlySubscription(subscription);
+  }
+
+  async getMonthlySubscription(subscriptionId: string): Promise<any> {
+    return await this.localDb.getMonthlySubscription(subscriptionId);
+  }
+
+  async getAllMonthlySubscriptions(activeOnly?: boolean): Promise<any[]> {
+    return await this.localDb.getAllMonthlySubscriptions(activeOnly);
+  }
+
+  async getActiveMonthlySubscriptions(): Promise<any[]> {
+    return await this.localDb.getActiveMonthlySubscriptions();
+  }
+
+  async getSubscriptionByPlate(vehiclePlate: string): Promise<any> {
+    return await this.localDb.getSubscriptionByPlate(vehiclePlate);
+  }
+
+  async getExpiringSubscriptions(daysBeforeExpiry?: number): Promise<any[]> {
+    return await this.localDb.getExpiringSubscriptions(daysBeforeExpiry);
+  }
+
+  async updateMonthlySubscription(subscription: any): Promise<void> {
+    return await this.localDb.updateMonthlySubscription(subscription);
+  }
+
+  async deleteMonthlySubscription(subscriptionId: string): Promise<void> {
+    return await this.localDb.deleteMonthlySubscription(subscriptionId);
+  }
+
+  async checkAndDeactivateExpiredSubscriptions(): Promise<number> {
+    return await this.localDb.checkAndDeactivateExpiredSubscriptions();
   }
 
   // === MÉTODOS DE UTILIDAD ===

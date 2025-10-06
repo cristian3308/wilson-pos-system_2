@@ -41,10 +41,15 @@ interface TicketData {
   barcode: string;
   placa: string;
   vehicleType: string;
-  fechaEntrada: Date;
+  fechaEntrada?: Date;
   fechaSalida?: Date;
   tiempoTotal?: string;
   valorPagar?: number;
+  // Nuevas propiedades del ticket completado
+  entryTime?: Date;
+  exitTime?: Date;
+  totalMinutes?: number;
+  totalAmount?: number;
   estado: 'activo' | 'pagado';
 }
 
@@ -191,7 +196,7 @@ export default function ImprovedParqueaderoManagement() {
   // Cargar datos del parqueadero usando el nuevo sistema
   const loadParkingData = async () => {
     try {
-      console.log('🔄 Cargando datos del parqueadero con sistema mejorado...');
+      // console.log('🔄 Cargando datos del parqueadero con sistema mejorado...');
       
       // Debug: Verificar estado de tickets
       await parkingSystem.debugTicketStatus();
@@ -229,10 +234,10 @@ export default function ImprovedParqueaderoManagement() {
       if (reallyActiveTickets && reallyActiveTickets.length > 0) {
         const convertedTickets = reallyActiveTickets.map(parkingTicketToTicketData);
         setActiveTickets(convertedTickets);
-        console.log(`✅ Cargados ${convertedTickets.length} tickets activos únicos`);
-        console.log('📝 Tickets activos finales:', convertedTickets.map(t => `${t.placa} (${t.estado})`));
+        // console.log(`✅ Cargados ${convertedTickets.length} tickets activos únicos`);
+        // console.log('📝 Tickets activos finales:', convertedTickets.map(t => `${t.placa} (${t.estado})`));
       } else {
-        console.log('ℹ️ No se encontraron tickets realmente activos');
+        // console.log('ℹ️ No se encontraron tickets realmente activos');
         setActiveTickets([]);
       }
 
@@ -240,7 +245,7 @@ export default function ImprovedParqueaderoManagement() {
       const vehiclesHistory = await dualDatabase.getParkingHistory();
       if (vehiclesHistory && vehiclesHistory.length > 0) {
         setVehicles(vehiclesHistory);
-        console.log(`✅ Cargados ${vehiclesHistory.length} registros de historial`);
+        // console.log(`✅ Cargados ${vehiclesHistory.length} registros de historial`);
       }
       
     } catch (error) {
@@ -318,7 +323,7 @@ export default function ImprovedParqueaderoManagement() {
         setSelectedVehicleType(combinedTypes[0]);
       }
       
-      console.log('✅ Tipos de vehículos cargados:', combinedTypes.length);
+      // console.log('✅ Tipos de vehículos cargados:', combinedTypes.length);
     } catch (error) {
       console.error('❌ Error cargando tipos de vehículos:', error);
     }
@@ -396,36 +401,129 @@ export default function ImprovedParqueaderoManagement() {
       setIsBarcodeReaderConnected(status.isConnected);
     };
 
-    // Configurar callback para códigos escaneados
-    const handleBarcodeScanned = async (barcode: string) => {
-      console.log('📊 Código de barras escaneado:', barcode);
-      setLastScannedBarcode(barcode);
-      setBarcodeNotification(`📊 Código escaneado: ${barcode}`);
+  // Configurar callback para códigos escaneados
+  const handleBarcodeScanned = async (barcode: string) => {
+    console.log('\n========== ESCANEO INICIADO ==========');
+    console.log('🔍 FUNCION LLAMADA - Barcode:', barcode);
+    console.log('Tipo:', typeof barcode, '| Longitud:', barcode?.length);
+    setLastScannedBarcode(barcode);
+    setBarcodeNotification(`Codigo escaneado: ${barcode}`);
+    
+    setTimeout(() => setBarcodeNotification(''), 3000);
+
+    // BUSCAR DIRECTAMENTE EN LA BASE DE DATOS (no confiar en estado React)
+    try {
+      console.log('Buscando en base de datos IndexedDB...');
+      const allTickets = await dualDatabase.getParkingTickets();
+      console.log('Total tickets en DB:', allTickets.length);
       
-      // Ocultar notificación después de 3 segundos
-      setTimeout(() => setBarcodeNotification(''), 3000);
-
-      // Buscar ticket por código de barras
-      const ticket = activeTickets.find(t => t.barcode === barcode);
+      // Filtrar solo tickets activos
+      const activeDbTickets = allTickets.filter(t => 
+        t.status === 'active' && !t.isPaid && !t.exitTime
+      );
+      console.log('Tickets activos en DB:', activeDbTickets.length);
+      
+      // Mostrar todos los tickets activos con sus barcodes
+      activeDbTickets.forEach(t => {
+        console.log(`  Placa: ${t.placa} | Barcode: "${t.barcode}" | Match: ${t.barcode === barcode ? 'SI' : 'NO'}`);
+      });
+      
+      // Buscar el ticket que coincida con el barcode escaneado
+      const ticket = activeDbTickets.find(t => t.barcode === barcode);
+      
       if (ticket) {
-        console.log('🎫 Ticket encontrado para salida:', ticket);
-        setScannedTicket(ticket);
-        setShowPayment(true);
-      } else {
-        // Si no se encuentra el ticket, buscar en vehículos
-        const vehicle = vehicles.find(v => v.barcode === barcode);
-        if (vehicle && vehicle.ticketData) {
-          console.log('🚗 Vehículo encontrado para salida:', vehicle);
-          setScannedTicket(vehicle.ticketData);
-          setShowPayment(true);
-        } else {
-          setBarcodeNotification(`⚠️ No se encontró ticket para el código: ${barcode}`);
+        console.log('ENCONTRADO:', ticket.placa);
+        console.log('Procesando salida automatica...');
+        
+        // Mostrar mensaje de procesamiento
+        const processingToast = document.createElement('div');
+        processingToast.className = 'fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        processingToast.innerHTML = `🔄 Procesando salida de ${ticket.placa}...`;
+        document.body.appendChild(processingToast);
+        
+        // Usar el sistema de parqueadero para procesar salida
+        const updatedTicket = await parkingSystem.processExit(ticket.id);
+        console.log('Ticket completado:', updatedTicket);
+        
+        // FORZAR limpieza de tickets completados inmediatamente
+        await parkingSystem.forceCleanCompletedTickets();
+        console.log('✅ Limpieza forzada de tickets completados ejecutada');
+        
+        // Crear ticket formateado para la factura
+        const ticketForPrint: TicketData = {
+          id: ticket.id,
+          barcode: ticket.barcode,
+          placa: ticket.placa,
+          vehicleType: ticket.vehicleType,
+          fechaEntrada: ticket.entryTime,
+          fechaSalida: updatedTicket.exitTime,
+          valorPagar: updatedTicket.totalAmount || 0,
+          totalAmount: updatedTicket.totalAmount || 0,
+          totalMinutes: updatedTicket.totalMinutes || 0,
+          estado: 'pagado',
+          tiempoTotal: updatedTicket.totalMinutes ? `${Math.floor(updatedTicket.totalMinutes / 60)}h ${updatedTicket.totalMinutes % 60}min` : '0min'
+        };
+        
+        // INMEDIATAMENTE actualizar estado local - remover de tickets activos
+        setActiveTickets(prev => {
+          const filtered = prev.filter(t => t.id !== ticket.id);
+          console.log(`📅 Tickets activos actualizados: ${prev.length} -> ${filtered.length}`);
+          return filtered;
+        });
+        
+        // Recargar datos ANTES de imprimir para actualizar dashboard
+        console.log('🔄 Recargando datos del parqueadero...');
+        await loadParkingData();
+        
+        // Imprimir factura de salida con estilo térmico
+        printExitTicket(ticketForPrint);
+        
+        // Recargar datos adicionales después de un delay para asegurar sincronización
+        setTimeout(async () => {
+          console.log('🔄 Recarga adicional de datos (1s)...');
+          await loadParkingData();
+        }, 1000);
+        
+        setTimeout(async () => {
+          console.log('🔄 Recarga final de datos (3s)...');
+          await loadParkingData();
+        }, 3000);
+        
+        // Remover mensaje de procesamiento
+        if (document.body.contains(processingToast)) {
+          document.body.removeChild(processingToast);
         }
+        
+        // Mostrar mensaje de éxito
+        const successToast = document.createElement('div');
+        successToast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        successToast.innerHTML = `✅ ${ticket.placa} - $${updatedTicket.totalAmount?.toLocaleString('es-CO')} - ${ticketForPrint.tiempoTotal}`;
+        document.body.appendChild(successToast);
+        
+        setTimeout(() => {
+          if (document.body.contains(successToast)) {
+            document.body.removeChild(successToast);
+          }
+        }, 4000);
+        
+        setBarcodeNotification(`Factura generada para ${ticket.placa}`);
+        console.log(`✅ Salida procesada: ${ticket.placa} - $${updatedTicket.totalAmount} - ${ticketForPrint.tiempoTotal}`);
+        console.log('========== PROCESO COMPLETADO ==========\n');
+      } else {
+        console.log('NO ENCONTRADO');
+        setBarcodeNotification(`No se encontro ticket para: ${barcode}`);
       }
-    };
-
+    } catch (error) {
+      console.error('Error procesando escaneo:', error);
+      setBarcodeNotification(`Error: ${error}`);
+    }
+  };
+  
     // Configurar callbacks del servicio
+    console.log('📝 Registrando callback de escaneo...');
     barcodeReaderService.onBarcode(handleBarcodeScanned);
+    console.log('✅ Callback de escaneo registrado correctamente');
+    
     barcodeReaderService.onConnection(() => {
       updateBarcodeReaderStatus();
       setBarcodeNotification('✅ Lector de código de barras conectado');
@@ -437,9 +535,62 @@ export default function ImprovedParqueaderoManagement() {
       setTimeout(() => setBarcodeNotification(''), 3000);
     });
 
+    // INICIAR AUTOMÁTICAMENTE el lector de código de barras
+    console.log('🔌 Intentando conectar lector de código de barras automáticamente...');
+    barcodeReaderService.connect()
+      .then(() => {
+        console.log('✅ Lector de código de barras conectado automáticamente');
+        updateBarcodeReaderStatus();
+      })
+      .catch((error) => {
+        console.warn('⚠️ No se pudo conectar el lector automáticamente:', error);
+        console.log('💡 El lector se conectará cuando esté disponible');
+      });
+
+    // CAPTURAR ESCANEO COMO EVENTOS DE TECLADO (para lectores que simulan tipeo)
+    let barcodeBuffer = '';
+    let barcodeTimeout: NodeJS.Timeout | null = null;
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ignorar eventos de inputs/textareas
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Si es Enter, procesar el código
+      if (e.key === 'Enter' && barcodeBuffer.length >= 10) {
+        console.log('⌨️ Código capturado por teclado:', barcodeBuffer);
+        handleBarcodeScanned(barcodeBuffer);
+        barcodeBuffer = '';
+        if (barcodeTimeout) clearTimeout(barcodeTimeout);
+        return;
+      }
+
+      // Si es un número, agregarlo al buffer
+      if (/^\d$/.test(e.key)) {
+        barcodeBuffer += e.key;
+        
+        // Resetear timeout
+        if (barcodeTimeout) clearTimeout(barcodeTimeout);
+        barcodeTimeout = setTimeout(() => {
+          barcodeBuffer = '';
+        }, 100); // 100ms de timeout entre caracteres
+      }
+    };
+
+    console.log('⌨️ Activando captura de escaneo por teclado...');
+    window.addEventListener('keypress', handleKeyPress);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('keypress', handleKeyPress);
+      if (barcodeTimeout) clearTimeout(barcodeTimeout);
+    };
+
     // Estado inicial
     updateBarcodeReaderStatus();
-  }, [isHydrated, activeTickets, vehicles]);
+  }, [isHydrated]);
 
   // Generar código de barras único más profesional
   const generateBarcode = (): string => {
@@ -518,7 +669,6 @@ export default function ImprovedParqueaderoManagement() {
   // Generar ticket de entrada profesional
   const generateEntryTicket = async () => {
     if (!placa.trim()) {
-      alert('Por favor ingrese la placa del vehículo');
       return;
     }
 
@@ -626,10 +776,11 @@ export default function ImprovedParqueaderoManagement() {
     doc.text('TICKET DE ENTRADA', 40, 40, { align: 'center' });
     
     doc.setFontSize(8);
+    const entryDate = ticket.fechaEntrada || ticket.entryTime || new Date();
     doc.text(`Placa: ${ticket.placa}`, 10, 50);
     doc.text(`Vehículo: ${ticket.vehicleType}`, 10, 55);
-    doc.text(`Fecha: ${ticket.fechaEntrada.toLocaleDateString('es-CO')}`, 10, 60);
-    doc.text(`Hora: ${ticket.fechaEntrada.toLocaleTimeString('es-CO')}`, 10, 65);
+    doc.text(`Fecha: ${entryDate.toLocaleDateString('es-CO')}`, 10, 60);
+    doc.text(`Hora: ${entryDate.toLocaleTimeString('es-CO')}`, 10, 65);
     doc.text(`Tarifa: $${selectedVehicleType.tarifa}/hora`, 10, 70);
     
     // Código de barras
@@ -755,49 +906,34 @@ export default function ImprovedParqueaderoManagement() {
   };
 
   // Imprimir ticket de salida
-  const printExitTicket = (ticket: TicketData) => {
-    const doc = new jsPDF({
-      unit: 'mm',
-      format: [80, 140]
-    });
+  const printExitTicket = (ticket: any) => {
+    // Convertir fechas de manera segura
+    const entryTime = ticket.entryTime ? new Date(ticket.entryTime) : new Date();
+    const exitTime = ticket.exitTime ? new Date(ticket.exitTime) : new Date();
+    const totalMinutes = ticket.totalMinutes || 0;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const tiempoTotal = `${hours}H ${minutes}M`;
+    const totalAmount = ticket.totalAmount || ticket.valorPagar || 0;
 
-    // Header
-    doc.setFontSize(12);
-    doc.text('WILSON CARS & WASH', 40, 15, { align: 'center' });
-    doc.setFontSize(8);
-    doc.text('PARKING PROFESSIONAL', 40, 20, { align: 'center' });
-    doc.text('NIT: 19475534', 40, 25, { align: 'center' });
-    
-    doc.line(5, 30, 75, 30);
-    
-    doc.setFontSize(10);
-    doc.text('FACTURA DE SALIDA', 40, 40, { align: 'center' });
-    
-    doc.setFontSize(8);
-    doc.text(`Placa: ${ticket.placa}`, 10, 50);
-    doc.text(`Vehículo: ${ticket.vehicleType}`, 10, 55);
-    doc.text(`Entrada: ${ticket.fechaEntrada.toLocaleString('es-CO')}`, 10, 60);
-    doc.text(`Salida: ${ticket.fechaSalida?.toLocaleString('es-CO')}`, 10, 65);
-    doc.text(`Tiempo: ${ticket.tiempoTotal}`, 10, 70);
-    
-    doc.line(5, 75, 75, 75);
-    
-    doc.setFontSize(10);
-    doc.text(`TOTAL A PAGAR: $${ticket.valorPagar?.toLocaleString('es-CO')}`, 40, 85, { align: 'center' });
-    
-    doc.line(5, 90, 75, 90);
-    
-    doc.setFontSize(6);
-    doc.text('Gracias por usar nuestros servicios', 40, 100, { align: 'center' });
-    doc.text('¡Vuelva pronto!', 40, 105, { align: 'center' });
-    
-    const pdfUrl = doc.output('bloburl');
-    window.open(pdfUrl, '_blank');
+    // Preparar datos para el ticket térmico
+    const ticketData: TicketData = {
+      id: ticket.id,
+      barcode: ticket.barcode,
+      placa: ticket.placa,
+      vehicleType: ticket.vehicleType,
+      entryTime: entryTime,
+      exitTime: exitTime,
+      totalMinutes: totalMinutes,
+      totalAmount: totalAmount,
+      tiempoTotal: tiempoTotal,
+      estado: 'pagado'
+    };
 
-    // Enviar a impresora POS térmica
-    printToPOS({
+    // Imprimir directamente con el estilo térmico
+    printThermalTicket({
       type: 'exit',
-      ticket: ticket
+      ticket: ticketData
     });
   };
 
@@ -826,6 +962,8 @@ export default function ImprovedParqueaderoManagement() {
       content += LF;
       
       if (data.type === 'entry') {
+        const entryDate = data.ticket.fechaEntrada || data.ticket.entryTime || new Date();
+        
         content += ESC + 'a' + '\x01'; // Centrar
         content += ESC + '!' + '\x18'; // Texto doble tamaño
         content += 'TICKET DE ENTRADA' + LF;
@@ -835,8 +973,8 @@ export default function ImprovedParqueaderoManagement() {
         
         content += `Placa:           ${data.ticket.placa}` + LF;
         content += `Vehiculo:        ${data.ticket.vehicleType}` + LF;
-        content += `Fecha:           ${data.ticket.fechaEntrada.toLocaleDateString('es-CO')}` + LF;
-        content += `Hora:            ${data.ticket.fechaEntrada.toLocaleTimeString('es-CO')}` + LF;
+        content += `Fecha:           ${entryDate.toLocaleDateString('es-CO')}` + LF;
+        content += `Hora:            ${entryDate.toLocaleTimeString('es-CO')}` + LF;
         if (data.vehicleType) {
           content += `Tarifa/Hora:     $${data.vehicleType.tarifa.toLocaleString('es-CO')}` + LF;
         }
@@ -858,6 +996,15 @@ export default function ImprovedParqueaderoManagement() {
         content += ESC + '!' + '\x00'; // Texto normal
         
       } else {
+        // Convertir fechas de manera segura
+        const entryTime = data.ticket.entryTime ? new Date(data.ticket.entryTime) : new Date();
+        const exitTime = data.ticket.exitTime ? new Date(data.ticket.exitTime) : new Date();
+        const totalMinutes = data.ticket.totalMinutes || 0;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const tiempoTotal = `${hours}H ${minutes}M`;
+        const totalAmount = data.ticket.totalAmount || data.ticket.valorPagar || 0;
+
         content += ESC + 'a' + '\x01'; // Centrar
         content += ESC + '!' + '\x18'; // Texto doble tamaño
         content += 'FACTURA DE SALIDA' + LF;
@@ -867,14 +1014,14 @@ export default function ImprovedParqueaderoManagement() {
         
         content += `Placa:           ${data.ticket.placa}` + LF;
         content += `Vehiculo:        ${data.ticket.vehicleType}` + LF;
-        content += `Entrada:         ${data.ticket.fechaEntrada.toLocaleString('es-CO')}` + LF;
-        content += `Salida:          ${data.ticket.fechaSalida?.toLocaleString('es-CO')}` + LF;
-        content += `Tiempo Total:    ${data.ticket.tiempoTotal}` + LF;
+        content += `Entrada:         ${entryTime.toLocaleString('es-CO')}` + LF;
+        content += `Salida:          ${exitTime.toLocaleString('es-CO')}` + LF;
+        content += `Tiempo Total:    ${tiempoTotal}` + LF;
         content += '================================' + LF;
         
         content += ESC + 'a' + '\x01'; // Centrar
         content += ESC + '!' + '\x38'; // Texto muy grande
-        content += `TOTAL: $${data.ticket.valorPagar?.toLocaleString('es-CO')}` + LF;
+        content += `TOTAL: $${totalAmount.toLocaleString('es-CO')}` + LF;
         content += ESC + '!' + '\x00'; // Texto normal
         content += '================================' + LF;
         
@@ -1192,11 +1339,11 @@ export default function ImprovedParqueaderoManagement() {
                 ${data.type === 'entry' ? `
                 <div class="info-row">
                     <span class="label">📅 Fecha de Entrada</span>
-                    <span class="value">${data.ticket.fechaEntrada.toLocaleDateString('es-CO')}</span>
+                    <span class="value">${(data.ticket.fechaEntrada || data.ticket.entryTime || new Date()).toLocaleDateString('es-CO')}</span>
                 </div>
                 <div class="info-row">
                     <span class="label">🕐 Hora de Entrada</span>
-                    <span class="value">${data.ticket.fechaEntrada.toLocaleTimeString('es-CO')}</span>
+                    <span class="value">${(data.ticket.fechaEntrada || data.ticket.entryTime || new Date()).toLocaleTimeString('es-CO')}</span>
                 </div>
                 <div class="info-row">
                     <span class="label">💰 Tarifa por Hora</span>
@@ -1205,11 +1352,11 @@ export default function ImprovedParqueaderoManagement() {
                 ` : `
                 <div class="info-row">
                     <span class="label">📅 Entrada</span>
-                    <span class="value">${data.ticket.fechaEntrada.toLocaleString('es-CO')}</span>
+                    <span class="value">${(data.ticket.fechaEntrada || data.ticket.entryTime || new Date()).toLocaleString('es-CO')}</span>
                 </div>
                 <div class="info-row">
                     <span class="label">📅 Salida</span>
-                    <span class="value">${data.ticket.fechaSalida?.toLocaleString('es-CO') || ''}</span>
+                    <span class="value">${(data.ticket.fechaSalida || data.ticket.exitTime)?.toLocaleString('es-CO') || ''}</span>
                 </div>
                 <div class="info-row">
                     <span class="label">⏱️ Tiempo Total</span>
@@ -1811,7 +1958,7 @@ export default function ImprovedParqueaderoManagement() {
       vehiculo: getVehicleTypeName(ticket.vehicleType),
       placa: ticket.placa,
       tipo: 'Por Fracción', // Los activos siempre son por fracción
-      entrada: ticket.fechaEntrada.toLocaleString('es-CO'),
+      entrada: (ticket.fechaEntrada || ticket.entryTime || new Date()).toLocaleString('es-CO'),
       salida: '—', // Sin salida porque están activos
       tiempo: '—', // Sin tiempo porque están activos
       estado: 'Parqueado',
@@ -1830,10 +1977,10 @@ export default function ImprovedParqueaderoManagement() {
   ];
   
   // Debug: Log para ver qué se está mostrando
-  console.log('🚗 Tickets activos para tabla:', activeTickets.length);
-  console.log('📜 Vehículos historial:', vehicles.length);
-  console.log('🔀 Total vehículos combinados:', allVehicles.length);
-  console.log('📋 Vehículos combinados:', allVehicles);
+  // console.log('🚗 Tickets activos para tabla:', activeTickets.length);
+  // console.log('📜 Vehículos historial:', vehicles.length);
+  // console.log('🔀 Total vehículos combinados:', allVehicles.length);
+  // console.log('📋 Vehículos combinados:', allVehicles);
 
   const filteredVehicles = allVehicles.filter(vehicle => {
     const matchesSearch = vehicle.placa.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1842,8 +1989,8 @@ export default function ImprovedParqueaderoManagement() {
     return matchesSearch && matchesType;
   });
   
-  console.log('🔍 Vehículos filtrados:', filteredVehicles.length);
-  console.log('📊 Datos filtrados:', filteredVehicles);
+  // console.log('🔍 Vehículos filtrados:', filteredVehicles.length);
+  // console.log('📊 Datos filtrados:', filteredVehicles);
 
   if (!isHydrated) {
     return (
@@ -1981,7 +2128,7 @@ export default function ImprovedParqueaderoManagement() {
             >
               <div className="flex items-center gap-2">
                 <TicketIcon className="w-5 h-5" />
-                <Printer className="w-4 h-4" />
+                <Printer className="lucide lucide-printer w-4 h-4" />
               </div>
               <span>Generar e Imprimir Ticket</span>
             </motion.button>
@@ -2022,10 +2169,7 @@ export default function ImprovedParqueaderoManagement() {
             className="mb-6"
           >
             <BarcodeReaderConfig
-              onBarcodeScanned={(barcode) => {
-                // Esta función ya se maneja en el useEffect
-                console.log('Código de barras recibido desde el componente:', barcode);
-              }}
+              onBarcodeScanned={undefined}
               showTestArea={false}
             />
           </motion.div>
@@ -2148,7 +2292,7 @@ export default function ImprovedParqueaderoManagement() {
                           className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                           title={vehicle.estado === 'Parqueado' ? 'Procesar Salida y Cobrar' : 'Reimprimir Ticket'}
                         >
-                          <Printer className="w-4 h-4" />
+                          <Printer className="lucide lucide-printer w-4 h-4" />
                         </button>
                       )}
                       <button

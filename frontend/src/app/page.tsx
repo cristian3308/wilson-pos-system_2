@@ -10,6 +10,7 @@ import WorkersManagement from '@/components/WorkersManagement';
 import ConfigurationPanel from '@/components/ConfigurationPanel';
 import ParkingManagement from '@/components/ParkingManagement';
 import BusinessConfigurationPanel from '@/components/BusinessConfigurationPanel';
+import MonthlySubscriptionManager from '@/components/MonthlySubscriptionManager';
 import CompanyLogo from '@/components/ui/CompanyLogo';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -59,7 +60,7 @@ export default function Home() {
     },
     {
       id: 'lavadero' as ViewMode,
-      title: 'Cierre de Caja Lavadero',
+      title: 'Gestion de Lavadero',
       description: 'Gestión completa del servicio de lavado',
       icon: '🧽',
       gradient: 'from-cyan-500 to-blue-600'
@@ -85,51 +86,7 @@ export default function Home() {
       case 'parqueadero':
         return <ImprovedParqueaderoManagement />;
       case 'mensual':
-        return (
-          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50 p-4">
-            {/* Header Section */}
-            <div className="mb-4">
-              <div className="bg-white rounded-xl p-3 shadow-md border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CompanyLogo size="sm" showText={true} className="text-gray-800" />
-                    <div className="hidden md:block h-6 w-px bg-gray-300"></div>
-                    <div>
-                      <h1 className="text-lg font-bold text-gray-800">PARQUEADERO WILSON</h1>
-                      <p className="text-gray-600 text-xs">NIT 19475534</p>
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <div className="flex items-center gap-2 text-green-600 mb-1">
-                      <span className="text-xs font-medium">Bienvenido Wilson González</span>
-                    </div>
-                    <div className="text-sm font-mono font-bold text-gray-800">
-                      {new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-center min-h-96">
-              <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-lg w-full text-center">
-                <Clock className="w-16 h-16 text-teal-600 mx-auto mb-6" />
-                <h1 className="text-4xl font-bold text-gray-800 mb-6">Clientes Mensuales</h1>
-                <p className="text-gray-600 mb-8 text-lg">
-                  Gestión de clientes con suscripciones mensuales y semanales. 
-                  Próximamente disponible.
-                </p>
-                <button
-                  onClick={() => setCurrentView('dashboard')}
-                  className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-4 rounded-lg font-medium transition-colors"
-                >
-                  Volver al Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        );
+        return <MonthlySubscriptionManager />;
       case 'lavadero':
         return <CarwashManagement />;
       case 'trabajadores':
