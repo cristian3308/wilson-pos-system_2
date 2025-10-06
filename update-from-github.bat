@@ -28,6 +28,14 @@ if not exist ".git" (
 echo [INFO] Verificando conexion con GitHub...
 echo.
 
+REM Limpiar archivos temporales que están en .gitignore pero tracked
+echo [INFO] Limpiando archivos temporales...
+git rm --cached -r frontend/.next/cache/ frontend/.next/trace backend/logs/*.log 2>nul
+git checkout -- frontend/.next/cache/ frontend/.next/trace backend/logs/ 2>nul
+git clean -fd frontend/.next/cache/ backend/logs/ 2>nul
+echo [OK] Archivos temporales limpiados.
+echo.
+
 REM Verificar estado del repositorio
 git status
 
