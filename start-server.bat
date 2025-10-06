@@ -1,4 +1,5 @@
 @echo off
+REM Este script inicia los servidores de forma visible (para ejecutar manualmente)
 title POS Web Professional - Server
 color 0A
 
