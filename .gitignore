@@ -1,19 +1,20 @@
 # Dependencies
 node_modules/
 
-# Build files
-frontend/.next/
+# Build files (temporal de Next.js)
+frontend/.next/cache/
+frontend/.next/trace
 frontend/out/
 frontend/build/
 
-# Database
+# Database LOCAL (no subir datos de usuarios)
 backend/src/database/*.db
 backend/src/database/*.db-*
 
-# Logs
+# Logs (no subir logs)
 backend/logs/*.log
 
-# Environment variables
+# Environment variables (NO subir claves secretas)
 .env
 .env.local
 .env.development.local
@@ -27,7 +28,3 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
-
-# Temporary files
-*.tmp
-*.temp
