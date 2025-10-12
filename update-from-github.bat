@@ -28,6 +28,10 @@ if not exist ".git" (
 echo [INFO] Verificando conexion con GitHub...
 echo.
 
+REM Obtener información del repositorio remoto
+git remote -v
+echo.
+
 REM Limpiar archivos temporales que están en .gitignore pero tracked
 echo [INFO] Limpiando archivos temporales...
 git rm --cached -r frontend/.next/cache/ frontend/.next/trace backend/logs/*.log 2>nul
@@ -122,6 +126,10 @@ if %HAS_UNSTAGED% neq 0 (
 
 :update
 echo [INFO] Descargando ultimos cambios desde GitHub...
+echo.
+
+REM Verificar que estamos en la rama main
+git checkout main
 echo.
 
 REM Descargar cambios desde GitHub
