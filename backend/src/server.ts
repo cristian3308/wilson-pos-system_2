@@ -23,6 +23,7 @@ import parqueaderoRoutes from './routes/parqueadero';
 import lavaderoRoutes from './routes/lavadero';
 import configuracionRoutes from './routes/configuracion';
 import dashboardRoutes from './routes/dashboard';
+import cashClosureRoutes from './routes/cashClosureRoutes';
 
 // Environment variables
 import dotenv from 'dotenv';
@@ -111,6 +112,7 @@ app.use('/api/v1', demoRoutes);
 app.use('/api/v1', parqueaderoRoutes);
 app.use('/api/v1', lavaderoRoutes);
 app.use('/api/v1', configuracionRoutes);
+app.use('/api/v1', cashClosureRoutes);
 
 // Socket.IO events
 io.on('connection', (socket) => {

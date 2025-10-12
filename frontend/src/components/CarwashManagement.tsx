@@ -29,7 +29,7 @@ import {
 import { getDualDB, Worker, CarwashService, CarwashTransaction } from '@/lib/dualDatabase';
 import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
 import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
-import { printThermalTicket, printCarwashTicket } from './PrintFallback';
+import { printSimpleTicket, printSimpleCarwashTicket } from './SimpleTicketPrint';
 import toast from 'react-hot-toast';
 
 interface CarwashOrderData {
@@ -162,6 +162,21 @@ const CarwashManagement: React.FC = () => {
       appEvents.off(APP_EVENTS.CARWASH_ORDER_UPDATED, handleCarwashOrderUpdate);
     };
   }, []); // Sin dependencias para que loadData use la referencia más reciente
+
+  // ✅ ESCUCHAR CAMBIOS EN LA CONFIGURACIÓN EMPRESARIAL
+  useEffect(() => {
+    const handleConfigUpdate = () => {
+      console.log('📡 CarwashManagement - Configuración actualizada, recargando servicios...');
+      loadData(); // Recargar todo para asegurar sincronización de precios
+      loadVehicleTypes(); // Recargar tipos de vehículos por si cambiaron
+    };
+
+    appEvents.on(APP_EVENTS.CONFIG_UPDATED, handleConfigUpdate);
+
+    return () => {
+      appEvents.off(APP_EVENTS.CONFIG_UPDATED, handleConfigUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -307,7 +322,7 @@ const CarwashManagement: React.FC = () => {
 
       // Imprimir ticket automáticamente usando los datos que acabamos de crear
       try {
-        await printCarwashTicket(transactionData as any);
+        await printSimpleCarwashTicket(transactionData as any);
         toast.success('🖨️ Ticket generado');
       } catch (printError) {
         console.error('Error imprimiendo ticket:', printError);
@@ -351,22 +366,12 @@ const CarwashManagement: React.FC = () => {
       });
 
       // Generate receipt
-      const receiptData = {
-        type: 'exit' as const,
-        ticket: {
-          id: transaction.id,
-          barcode: `CW${Date.now()}`,
-          placa: transaction.placa,
-          vehicleType: transaction.vehicleType,
-          fechaEntrada: transaction.startTime,
-          fechaSalida: new Date(),
-          tiempoTotal: `${Math.floor((Date.now() - new Date(transaction.startTime).getTime()) / (1000 * 60))} min`,
-          valorPagar: transaction.basePrice,
-          estado: 'pagado' as const
-        }
-      };
-
-      printThermalTicket(receiptData);
+      // Imprimir usando el nuevo diseño de lavadero
+      await printSimpleCarwashTicket({
+        ...transaction,
+        status: 'completed',
+        endTime: new Date()
+      });
       
       toast.success('Trabajo completado e impreso');
       await loadData();
@@ -662,7 +667,7 @@ const CarwashManagement: React.FC = () => {
                     <button
                       onClick={async () => {
                         try {
-                          await printCarwashTicket(transaction as any);
+                          await printSimpleCarwashTicket(transaction as any);
                           toast.success('🖨️ Ticket impreso');
                         } catch (error) {
                           console.error('Error imprimiendo:', error);
@@ -748,7 +753,7 @@ const CarwashManagement: React.FC = () => {
                         <button
                           onClick={async () => {
                             try {
-                              await printCarwashTicket(transaction as any);
+                              await printSimpleCarwashTicket(transaction as any);
                               toast.success('🖨️ Ticket impreso');
                             } catch (error) {
                               console.error('Error imprimiendo:', error);

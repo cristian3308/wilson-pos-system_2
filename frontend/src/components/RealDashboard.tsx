@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CurrencyDollarIcon,
   TruckIcon,
@@ -9,8 +9,10 @@ import {
   QrCodeIcon,
   ChartBarIcon,
   PlayIcon,
-  PlusIcon
+  PlusIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
+import { X } from 'lucide-react';
 
 import { useDashboardDataReal } from '@/hooks/useDashboardDataReal';
 import ParqueaderoManagement from '@/components/ImprovedParqueaderoManagement';
@@ -18,6 +20,11 @@ import CarwashManagement from '@/components/CarwashManagement';
 import DatabaseAdmin from '@/components/DatabaseAdmin';
 import ConnectionIndicator from '@/components/ConnectionIndicator';
 import SyncButton from '@/components/SyncButton';
+import CashClosureReport from '@/components/CashClosureReport';
+import ReportsDashboard from '@/components/ReportsDashboard';
+import DateRangePicker, { DateRange } from '@/components/DateRangePicker';
+import { getLocalDB } from '@/lib/localDatabase';
+import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -44,7 +51,53 @@ const itemVariants = {
 
 export default function RealDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'parking' | 'carwash' | 'admin'>('overview');
-  const { data, isLoading, error, refreshData } = useDashboardDataReal();
+  const [showCashClosureModal, setShowCashClosureModal] = useState(false);
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null, filter: 'all' });
+  const [lastClosureDate, setLastClosureDate] = useState<Date | null>(null);
+  const { data, isLoading, error, refreshData} = useDashboardDataReal(dateRange); // ✅ Pasar filtro al hook
+
+  // Cargar fecha del último cierre al montar el componente
+  useEffect(() => {
+    const localDB = getLocalDB();
+    const lastClosure = localDB.getLastClosure();
+    setLastClosureDate(lastClosure);
+    
+    // Si hay un último cierre reciente (últimas 24 horas), sugerir filtrar desde esa fecha
+    if (lastClosure) {
+      const hoursSinceLastClosure = (Date.now() - lastClosure.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastClosure < 24) {
+        console.log(`📅 Último cierre hace ${Math.floor(hoursSinceLastClosure)} horas`);
+      }
+    }
+  }, []);
+
+  // 🎧 Escuchar evento de cierre de caja completado
+  useEffect(() => {
+    const handleCashClosure = (data: { closureDate: Date }) => {
+      console.log('📡 [RealDashboard] Cierre de caja detectado, aplicando filtro automático...');
+      
+      // Actualizar la fecha del último cierre
+      setLastClosureDate(data.closureDate);
+      
+      // Aplicar automáticamente el filtro "Desde último cierre"
+      setDateRange({
+        from: data.closureDate,
+        to: new Date(),
+        filter: 'lastClosure'
+      });
+      
+      // El hook se recargará automáticamente con el nuevo dateRange
+      console.log('✅ [RealDashboard] Filtro aplicado desde:', data.closureDate.toLocaleString('es-CO'), 'hasta ahora');
+    };
+
+    appEvents.on(APP_EVENTS.CASH_CLOSURE_COMPLETED, handleCashClosure);
+
+    return () => {
+      appEvents.off(APP_EVENTS.CASH_CLOSURE_COMPLETED, handleCashClosure);
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -234,7 +287,10 @@ export default function RealDashboard() {
             <p className="text-sm text-gray-600 text-center">Crear orden de lavado</p>
           </button>
 
-          <button className="flex flex-col items-center p-6 bg-green-50 hover:bg-green-100 rounded-xl transition-colors group">
+          <button 
+            onClick={() => setShowCashClosureModal(true)}
+            className="flex flex-col items-center p-6 bg-green-50 hover:bg-green-100 rounded-xl transition-colors group"
+          >
             <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
               <CurrencyDollarIcon className="w-6 h-6 text-white" />
             </div>
@@ -242,7 +298,10 @@ export default function RealDashboard() {
             <p className="text-sm text-gray-600 text-center">Procesar cierre diario</p>
           </button>
 
-          <button className="flex flex-col items-center p-6 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors group">
+          <button 
+            onClick={() => setShowReportsModal(true)}
+            className="flex flex-col items-center p-6 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors group"
+          >
             <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
               <ChartBarIcon className="w-6 h-6 text-white" />
             </div>
@@ -343,6 +402,17 @@ export default function RealDashboard() {
                 variant="success"
               />
               <button
+                onClick={() => setShowDateFilter(!showDateFilter)}
+                className={`${
+                  dateRange.filter !== 'all' 
+                    ? 'bg-indigo-600 hover:bg-indigo-700' 
+                    : 'bg-purple-600 hover:bg-purple-700'
+                } text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2`}
+              >
+                <CalendarIcon className="w-4 h-4" />
+                {dateRange.filter !== 'all' ? 'Filtro Activo' : 'Filtrar por Fecha'}
+              </button>
+              <button
                 onClick={refreshData}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
@@ -360,6 +430,139 @@ export default function RealDashboard() {
         {activeTab === 'carwash' && <CarwashManagement />}
         {activeTab === 'admin' && <DatabaseAdmin />}
       </div>
+
+      {/* Modal de Cierre de Caja */}
+      <AnimatePresence>
+        {showCashClosureModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCashClosureModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden"
+            >
+              <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <CurrencyDollarIcon className="w-8 h-8" />
+                  Cierre de Caja
+                </h2>
+                <button
+                  onClick={() => setShowCashClosureModal(false)}
+                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+                <CashClosureReport />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Reportes */}
+      <AnimatePresence>
+        {showReportsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowReportsModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden"
+            >
+              <div className="bg-gradient-to-r from-orange-600 to-orange-700 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <ChartBarIcon className="w-8 h-8" />
+                  Reportes y Análisis
+                </h2>
+                <button
+                  onClick={() => setShowReportsModal(false)}
+                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+                <ReportsDashboard />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Filtros de Fecha */}
+      <AnimatePresence>
+        {showDateFilter && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowDateFilter(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full"
+            >
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <CalendarIcon className="w-8 h-8" />
+                  Filtrar Dashboard por Fecha
+                </h2>
+                <button
+                  onClick={() => setShowDateFilter(false)}
+                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                <DateRangePicker
+                  onRangeChange={(range) => {
+                    console.log('📅 [RealDashboard] Aplicando filtro de fecha:', {
+                      filter: range.filter,
+                      from: range.from?.toLocaleString('es-CO'),
+                      to: range.to?.toLocaleString('es-CO')
+                    });
+                    setDateRange(range);
+                    // Cerrar modal después de seleccionar
+                    if (range.filter !== 'custom' || (range.from && range.to)) {
+                      setTimeout(() => setShowDateFilter(false), 300);
+                    }
+                    // El hook se recargará automáticamente al cambiar dateRange
+                  }}
+                  lastClosureDate={lastClosureDate}
+                  showQuickFilters={true}
+                />
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>💡 Nota:</strong> Los filtros de fecha afectan todas las métricas del dashboard. 
+                    Los datos históricos se mantienen guardados y pueden ser consultados en cualquier momento.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

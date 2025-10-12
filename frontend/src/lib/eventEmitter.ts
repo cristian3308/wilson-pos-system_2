@@ -42,4 +42,5 @@ export const APP_EVENTS = {
   VEHICLE_TYPE_DELETED: 'vehicle-type-deleted',
   CONFIG_UPDATED: 'config-updated',
   CARWASH_ORDER_UPDATED: 'carwash-order-updated', // 🔄 Evento para actualización de órdenes del lavadero
+  CASH_CLOSURE_COMPLETED: 'cash-closure-completed', // 💰 Evento cuando se completa un cierre de caja
 } as const;

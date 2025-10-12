@@ -215,6 +215,8 @@ class ParkingSystem {
       tipo: 'Por Fracción',
       entrada: entryDate.toLocaleString('es-CO'),
       salida: now.toLocaleString('es-CO'),
+      fechaEntrada: entryDate.toISOString(), // ✅ Agregar fecha ISO para filtros
+      fechaSalida: now.toISOString(), // ✅ Agregar fecha ISO para filtros
       tiempo: timeSpent.displayTime,
       estado: 'Salió' as const,
       cobro: finalAmount,
@@ -429,16 +431,34 @@ class ParkingSystem {
     };
   }
 
-  // Calcular monto final basado en tiempo
+  // Calcular monto final basado en tiempo - Sistema de MEDIAS HORAS
   private calculateFinalAmount(basePrice: number, timeSpent: any): number {
     const hourlyRate = basePrice; // Precio por hora (ej: $2000/hora)
-    const pricePerMinute = hourlyRate / 60; // Precio por minuto (ej: $2000/60 = $33.33/min)
+    const totalMinutes = timeSpent.totalMinutes;
     
-    // Calcular el costo exacto basado en minutos
-    const totalCost = Math.ceil(timeSpent.totalMinutes * pricePerMinute);
+    // Calcular horas completas y minutos restantes
+    const fullHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
     
-    // Mínimo cobro: 1 minuto
-    return totalCost > 0 ? totalCost : Math.ceil(pricePerMinute);
+    // Calcular costo
+    let totalCost = 0;
+    
+    // Cobrar las horas completas
+    totalCost += fullHours * hourlyRate;
+    
+    // Cobrar la fracción restante
+    if (remainingMinutes > 0) {
+      if (remainingMinutes <= 29) {
+        // 1-29 minutos = mitad del precio (media hora)
+        totalCost += hourlyRate / 2;
+      } else {
+        // 30-60 minutos = precio completo (hora completa)
+        totalCost += hourlyRate;
+      }
+    }
+    
+    // Mínimo cobro: media hora
+    return totalCost > 0 ? totalCost : (hourlyRate / 2);
   }  // Convertir tipo de vehículo a español
   private getVehicleTypeInSpanish(vehicleType: string): string {
     const types = {

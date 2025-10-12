@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Car, 
@@ -20,10 +20,18 @@ import {
   XCircle,
   Loader2,
   Truck,
-  Droplets
+  Droplets,
+  X,
+  FileText,
+  Calendar
 } from 'lucide-react';
 import { useSystem } from '@/contexts/SystemContext';
 import { DashboardMetrics, safeGetVehicleStats, safeGetCarwashStats, formatCurrency } from '@/types';
+import CashClosureReport from './CashClosureReport';
+import ReportsDashboard from './ReportsDashboard';
+import { localDB, ParkingTicket, CarwashTransaction, VehicleTypeConfig, BusinessConfig, getLocalDB } from '@/lib/localDatabase';
+import DateRangePicker, { DateRange } from '@/components/DateRangePicker';
+import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 
 export default function AdvancedDashboard() {
   const { state, actions } = useSystem();
@@ -31,6 +39,115 @@ export default function AdvancedDashboard() {
 
   const isLoading = loadingStates.dashboard === 'loading' || loadingStates.global === 'loading';
   const hasError = !!errors.dashboard;
+
+  // Estados para modales
+  const [showCashClosureModal, setShowCashClosureModal] = useState(false);
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+
+  // Estados para filtros de fecha
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: null,
+    to: null,
+    filter: 'all'
+  });
+  const [lastClosureDate, setLastClosureDate] = useState<Date | null>(null);
+
+  // Estado para el cierre de caja
+  const [cashClosureData, setCashClosureData] = useState<{
+    businessName: string;
+    date: Date;
+    parkingTickets: ParkingTicket[];
+    carwashTransactions: CarwashTransaction[];
+    vehicleTypes: VehicleTypeConfig[];
+  } | null>(null);
+
+  // Función para cargar datos del cierre de caja
+  const loadCashClosureData = async () => {
+    try {
+      // Obtener todos los tickets de parqueadero del día
+      const allParkingTickets = await localDB.getParkingTickets();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todayTickets = allParkingTickets.filter((ticket: ParkingTicket) => {
+        const ticketDate = new Date(ticket.entryTime);
+        ticketDate.setHours(0, 0, 0, 0);
+        return ticketDate.getTime() === today.getTime();
+      });
+
+      // Obtener todas las transacciones de lavadero del día
+      const allCarwashTransactions = await localDB.getAllCarwashTransactions();
+      const todayTransactions = allCarwashTransactions.filter((transaction: CarwashTransaction) => {
+        const transactionDate = new Date(transaction.startTime);
+        transactionDate.setHours(0, 0, 0, 0);
+        return transactionDate.getTime() === today.getTime();
+      });
+
+      // Obtener configuración de tipos de vehículos
+      const config = await localDB.getBusinessConfig();
+      const vehicleTypes = config?.vehicleTypes || [];
+
+      // Establecer datos
+      setCashClosureData({
+        businessName: config?.businessName || 'WILSON CARS & WASH',
+        date: new Date(),
+        parkingTickets: todayTickets,
+        carwashTransactions: todayTransactions,
+        vehicleTypes: vehicleTypes
+      });
+    } catch (error) {
+      console.error('Error loading cash closure data:', error);
+    }
+  };
+
+  // Cargar fecha del último cierre
+  useEffect(() => {
+    const localDBInstance = getLocalDB();
+    const lastClosure = localDBInstance.getLastClosure();
+    setLastClosureDate(lastClosure);
+    
+    if (lastClosure) {
+      const hoursSinceLastClosure = (Date.now() - lastClosure.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastClosure < 24) {
+        console.log(`📅 [AdvancedDashboard] Último cierre hace ${Math.floor(hoursSinceLastClosure)} horas`);
+      }
+    }
+  }, []);
+
+  // Cargar datos al montar el componente
+  useEffect(() => {
+    loadCashClosureData();
+    console.log('AdvancedDashboard montado - Botones disponibles');
+  }, []);
+
+  // 🎧 Escuchar evento de cierre de caja completado
+  useEffect(() => {
+    const handleCashClosure = (data: { closureDate: Date }) => {
+      console.log('📡 [AdvancedDashboard] Cierre de caja detectado, aplicando filtro automático...');
+      
+      // Actualizar la fecha del último cierre
+      setLastClosureDate(data.closureDate);
+      
+      // Aplicar automáticamente el filtro "Desde último cierre"
+      setDateRange({
+        from: data.closureDate,
+        to: new Date(),
+        filter: 'lastClosure'
+      });
+      
+      // Refrescar datos para mostrar las métricas en 0
+      actions.refreshAll();
+      
+      console.log('✅ [AdvancedDashboard] Filtro aplicado desde:', data.closureDate.toLocaleString('es-CO'));
+    };
+
+    appEvents.on(APP_EVENTS.CASH_CLOSURE_COMPLETED, handleCashClosure);
+
+    return () => {
+      appEvents.off(APP_EVENTS.CASH_CLOSURE_COMPLETED, handleCashClosure);
+    };
+  }, [actions]);
 
   const calculatePercentage = (value: number, total: number) => {
     return total > 0 ? Math.round((value / total) * 100) : 0;
@@ -171,6 +288,40 @@ export default function AdvancedDashboard() {
                 <RefreshCw className="w-4 h-4" />
               )}
               Actualizar
+            </button>
+
+            {/* Botón de Cierre de Caja */}
+            <button
+              onClick={() => {
+                loadCashClosureData();
+                setShowCashClosureModal(true);
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <DollarSign className="w-4 h-4" />
+              Cierre de Caja
+            </button>
+
+            {/* Botón de Reportes */}
+            <button
+              onClick={() => setShowReportsModal(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Reportes
+            </button>
+
+            {/* Botón de Filtrar por Fecha */}
+            <button
+              onClick={() => setShowDateFilter(!showDateFilter)}
+              className={`${
+                dateRange.filter !== 'all' 
+                  ? 'bg-indigo-600 hover:bg-indigo-700'
+                  : 'bg-purple-600 hover:bg-purple-700'
+              } text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2`}
+            >
+              <Calendar className="w-4 h-4" />
+              {dateRange.filter !== 'all' ? 'Filtro Activo' : 'Filtrar por Fecha'}
             </button>
           </div>
         </div>
@@ -413,6 +564,144 @@ export default function AdvancedDashboard() {
           </div>
         </motion.div>
       </div>
+
+      {/* Modal de Cierre de Caja */}
+      <AnimatePresence>
+        {showCashClosureModal && cashClosureData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCashClosureModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <DollarSign className="w-8 h-8" />
+                  Cierre de Caja
+                </h2>
+                <button
+                  onClick={() => setShowCashClosureModal(false)}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6 text-center">
+                <p className="text-gray-600 mb-6">
+                  Haz clic en el botón para generar y descargar el PDF del cierre de caja
+                </p>
+                <CashClosureReport 
+                  data={cashClosureData}
+                  onGenerate={loadCashClosureData}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Reportes */}
+      <AnimatePresence>
+        {showReportsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowReportsModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-slate-900 rounded-2xl shadow-2xl w-full max-w-[95vw] h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <FileText className="w-8 h-8" />
+                  Reportes y Estadísticas
+                </h2>
+                <button
+                  onClick={() => setShowReportsModal(false)}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="h-[calc(100%-80px)] overflow-y-auto">
+                <ReportsDashboard />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Filtros de Fecha */}
+      <AnimatePresence>
+        {showDateFilter && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowDateFilter(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <Calendar className="w-8 h-8" />
+                  Filtrar Dashboard por Fecha
+                </h2>
+                <button
+                  onClick={() => setShowDateFilter(false)}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                <DateRangePicker
+                  onRangeChange={(range) => {
+                    setDateRange(range);
+                    console.log('📅 [AdvancedDashboard] Filtro de fecha seleccionado:', range);
+                    
+                    // Auto-cerrar el modal si no es filtro personalizado o si ya se seleccionaron ambas fechas
+                    if (range.filter !== 'custom' || (range.from && range.to)) {
+                      setTimeout(() => setShowDateFilter(false), 300);
+                      // Aquí se puede agregar lógica para refrescar datos con el nuevo filtro
+                      actions.refreshAll();
+                    }
+                  }}
+                  lastClosureDate={lastClosureDate}
+                  showQuickFilters={true}
+                />
+                
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-sm">
+                    💡 <strong>Nota:</strong> Los filtros de fecha afectan todas las métricas del dashboard. 
+                    Los datos históricos se mantienen guardados y no se eliminan.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

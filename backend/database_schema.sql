@@ -130,3 +130,25 @@ INSERT OR IGNORE INTO configuracion_sistema (clave, valor, descripcion) VALUES
 ('tiempo_gracia', '10', 'Minutos de gracia para el pago'),
 ('moneda', 'COP', 'Moneda del sistema'),
 ('iva', '19', 'Porcentaje de IVA');
+
+-- Cash closures
+CREATE TABLE IF NOT EXISTS cash_closures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    closure_number TEXT NOT NULL UNIQUE,
+    start_date DATETIME NOT NULL,
+    end_date DATETIME NOT NULL,
+    parking_revenue DECIMAL(10,2) DEFAULT 0,
+    carwash_revenue DECIMAL(10,2) DEFAULT 0,
+    total_revenue DECIMAL(10,2) DEFAULT 0,
+    total_commissions DECIMAL(10,2) DEFAULT 0,
+    net_profit DECIMAL(10,2) DEFAULT 0,
+    parking_data TEXT DEFAULT '[]',
+    carwash_data TEXT DEFAULT '[]',
+    worker_commissions TEXT DEFAULT '[]',
+    parking_details TEXT DEFAULT '[]',
+    carwash_details TEXT DEFAULT '[]',
+    created_by TEXT DEFAULT 'sistema',
+    notes TEXT DEFAULT '',
+    pdf_generated BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

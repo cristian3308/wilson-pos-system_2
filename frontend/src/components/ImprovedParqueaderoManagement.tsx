@@ -28,13 +28,13 @@ import jsPDF from 'jspdf';
 import CompanyLogo from './ui/CompanyLogo';
 import { useHydration } from '@/hooks/useHydration';
 import { dualDatabase } from '@/lib/dualDatabase';
+import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 import { parkingSystem } from '@/lib/parkingSystem';
 import { barcodeReaderService } from '../services/BarcodeReaderService';
 import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
 import BarcodeReaderConfig from './BarcodeReaderConfig';
 import SyncButton from './SyncButton';
 import AddVehicleTypeModal from './AddVehicleTypeModal';
-import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 
 interface TicketData {
   id: string;
@@ -60,8 +60,7 @@ interface VehicleType {
   tarifa: number; // precio por hora
 }
 
-import { printModernTicket } from './PrintFallback';
-import { printThermalTicket } from './PrintFallback';
+import { printSimpleTicket } from './SimpleTicketPrint';
 
 // Iconos disponibles para mapear con los tipos dinámicos
 const iconMap: { [key: string]: React.ComponentType<any> } = {
@@ -70,14 +69,15 @@ const iconMap: { [key: string]: React.ComponentType<any> } = {
   Bike: Car   // Puedes cambiar por un icono específico
 };
 
-// Tipos de vehículos predeterminados (se combinan con los dinámicos)
-const defaultVehicleTypes: VehicleType[] = [
-  { id: 'todos', name: 'Todos los tipos', icon: Car, tarifa: 0 }, // Para mostrar todos sin filtrar
-  { id: 'carro', name: 'Carro', icon: Car, tarifa: 2000 },
-  { id: 'moto', name: 'Moto', icon: Car, tarifa: 1500 },
-  { id: 'camioneta', name: 'Camioneta', icon: Car, tarifa: 3000 },
-  { id: 'buseta', name: 'Buseta', icon: Car, tarifa: 5000 }
-];
+// Tipos de vehículos predeterminados - Estos se actualizarán dinámicamente desde BusinessConfig
+const getDefaultVehicleTypes = (businessConfig: any): VehicleType[] => {
+  return [
+    { id: 'todos', name: 'Todos los tipos', icon: Car, tarifa: 0 }, // Para mostrar todos sin filtrar
+    { id: 'car', name: 'Carro', icon: Car, tarifa: businessConfig?.carParkingRate || 3000 },
+    { id: 'motorcycle', name: 'Moto', icon: Car, tarifa: businessConfig?.motorcycleParkingRate || 2000 },
+    { id: 'truck', name: 'Camión', icon: Car, tarifa: businessConfig?.truckParkingRate || 4000 }
+  ];
+};
 
 interface VehicleRecord {
   id: number;
@@ -99,12 +99,13 @@ const sampleVehicles: VehicleRecord[] = [];
 export default function ImprovedParqueaderoManagement() {
   const isHydrated = useHydration();
   const [currentTime, setCurrentTime] = useState('');
+  const [businessConfig, setBusinessConfig] = useState<any>(null);
   
   // Estados para tipos de vehículos dinámicos
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(defaultVehicleTypes);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [showAddVehicleTypeModal, setShowAddVehicleTypeModal] = useState(false);
   
-  const [selectedVehicleType, setSelectedVehicleType] = useState<VehicleType>(defaultVehicleTypes[0]);
+  const [selectedVehicleType, setSelectedVehicleType] = useState<VehicleType>({ id: 'todos', name: 'Todos los tipos', icon: Car, tarifa: 0 });
   const [placa, setPlaca] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
@@ -302,19 +303,40 @@ export default function ImprovedParqueaderoManagement() {
   // Cargar tipos de vehículos dinámicos
   const loadVehicleTypes = async () => {
     try {
+      console.log('🔄 loadVehicleTypes - INICIANDO carga FRESCA desde IndexedDB...');
+      
       const localDB = getLocalDB();
-      const customTypes = await localDB.getVehicleTypes();
+      
+      // ⚠️ IMPORTANTE: Forzar recarga FRESCA sin caché
+      const config = await localDB.getBusinessConfig();
+      const customTypes = config?.vehicleTypes || [];
+      
+      console.log('🔍 DEBUG - Custom types from IndexedDB:', customTypes);
+      console.log('🔍 DEBUG - BusinessConfig completo:', config);
+      console.log('🔍 DEBUG - vehicleTypes en config:', config?.vehicleTypes);
+      
+      setBusinessConfig(config);
+      
+      // ✅ Obtener tipos predeterminados con tarifas de BusinessConfig
+      const defaultTypes = getDefaultVehicleTypes(config);
+      
+      console.log('🔍 DEBUG - Default types:', defaultTypes);
       
       // Combinar tipos predeterminados con tipos personalizados
       const combinedTypes: VehicleType[] = [
-        ...defaultVehicleTypes,
-        ...customTypes.map(customType => ({
-          id: customType.id,
-          name: customType.name,
-          icon: iconMap[customType.iconName] || Car,
-          tarifa: customType.tarifa
-        }))
+        ...defaultTypes,
+        ...customTypes.map(customType => {
+          console.log(`🔍 DEBUG - Mapping custom type: ${customType.name} - Tarifa: ${customType.tarifa} (FRESCO de IndexedDB)`);
+          return {
+            id: customType.id,
+            name: customType.name,
+            icon: iconMap[customType.iconName] || Car,
+            tarifa: customType.tarifa  // ✅ VALOR DIRECTO de IndexedDB
+          };
+        })
       ];
+      
+      console.log('🔍 DEBUG - Combined types:', combinedTypes);
       
       setVehicleTypes(combinedTypes);
       
@@ -323,7 +345,7 @@ export default function ImprovedParqueaderoManagement() {
         setSelectedVehicleType(combinedTypes[0]);
       }
       
-      // console.log('✅ Tipos de vehículos cargados:', combinedTypes.length);
+      console.log('✅ Tipos de vehículos cargados con tarifas de BusinessConfig');
     } catch (error) {
       console.error('❌ Error cargando tipos de vehículos:', error);
     }
@@ -387,9 +409,63 @@ export default function ImprovedParqueaderoManagement() {
   // Cargar tipos de vehículos dinámicos
   useEffect(() => {
     if (isHydrated) {
-      loadVehicleTypes();
+      // ⏱️ DELAY para asegurar sincronización completa de IndexedDB
+      const loadWithDelay = async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log('🔄 Carga inicial con delay de sincronización...');
+        await loadVehicleTypes();
+      };
+      
+      loadWithDelay();
     }
   }, [isHydrated]);
+
+  // ✅ ESCUCHAR CAMBIOS EN LA CONFIGURACIÓN EMPRESARIAL
+  useEffect(() => {
+    if (!isHydrated) return; // ⚠️ No registrar listeners hasta que esté hidratado
+    
+    console.log('🎧 ImprovedParqueadero - Registrando listeners de eventos...');
+    
+    const handleConfigUpdate = async (updatedConfig: any) => {
+      console.log('📡 ImprovedParqueadero - Configuración actualizada, esperando sincronización...');
+      setBusinessConfig(updatedConfig);
+      
+      // ⏱️ DELAY para permitir que IndexedDB complete la escritura
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('🔄 ImprovedParqueadero - Recargando tipos después del delay...');
+      
+      await loadVehicleTypes(); // Recargar tipos con nuevas tarifas
+    };
+
+    const handleVehicleTypeUpdate = async (data: any) => {
+      console.log('📡 ImprovedParqueadero - Tipo de vehículo actualizado:', data);
+      
+      // ⏱️ DELAY para permitir que IndexedDB complete la escritura
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('🔄 ImprovedParqueadero - Recargando tipos después del delay...');
+      
+      await loadVehicleTypes();
+    };
+
+    appEvents.on(APP_EVENTS.CONFIG_UPDATED, handleConfigUpdate);
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_ADDED, loadVehicleTypes);
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_UPDATED, handleVehicleTypeUpdate);
+    appEvents.on(APP_EVENTS.VEHICLE_TYPE_DELETED, loadVehicleTypes);
+
+    console.log('✅ ImprovedParqueadero - Listeners registrados correctamente');
+    console.log('📋 Eventos escuchando:', {
+      CONFIG_UPDATED: APP_EVENTS.CONFIG_UPDATED,
+      VEHICLE_TYPE_UPDATED: APP_EVENTS.VEHICLE_TYPE_UPDATED
+    });
+
+    return () => {
+      console.log('🔌 ImprovedParqueadero - Desregistrando listeners...');
+      appEvents.off(APP_EVENTS.CONFIG_UPDATED, handleConfigUpdate);
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_ADDED, loadVehicleTypes);
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_UPDATED, handleVehicleTypeUpdate);
+      appEvents.off(APP_EVENTS.VEHICLE_TYPE_DELETED, loadVehicleTypes);
+    };
+  }, [isHydrated]); // ✅ Solo re-ejecutar cuando isHydrated cambie (una sola vez)
 
   // Configurar lector de código de barras
   useEffect(() => {
@@ -634,7 +710,7 @@ export default function ImprovedParqueaderoManagement() {
     // Prioridad 2: Impresora detectada como conectada
     if (isPrinterConnected) {
       console.log('Usando impresora POS térmica');
-      printThermalTicket(data);
+      printSimpleTicket(data);
       return;
     }
     
@@ -650,19 +726,19 @@ export default function ImprovedParqueaderoManagement() {
           
           if (printers.length > 0) {
             console.log('Impresora térmica detectada:', printers[0].label);
-            printThermalTicket(data);
+            printSimpleTicket(data);
           } else {
             console.log('Usando diseño térmico por defecto');
-            printThermalTicket(data);
+            printSimpleTicket(data);
           }
         })
         .catch(() => {
           // Fallback: usar diseño térmico
-          printThermalTicket(data);
+          printSimpleTicket(data);
         });
     } else {
       // Fallback: usar diseño térmico
-      printThermalTicket(data);
+      printSimpleTicket(data);
     }
   };
 
@@ -931,7 +1007,7 @@ export default function ImprovedParqueaderoManagement() {
     };
 
     // Imprimir directamente con el estilo térmico
-    printThermalTicket({
+    printSimpleTicket({
       type: 'exit',
       ticket: ticketData
     });
@@ -1051,13 +1127,13 @@ export default function ImprovedParqueaderoManagement() {
         printViaSerialAPI(content);
       } else {
         // Fallback: usar ticket térmico HTML
-        printThermalTicket(data);
+        printSimpleTicket(data);
       }
       
     } catch (error) {
       console.error('Error al imprimir en POS térmica:', error);
       // Fallback en caso de error
-      printThermalTicket(data);
+      printSimpleTicket(data);
     }
   };
 

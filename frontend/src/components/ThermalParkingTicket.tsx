@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ParkingTicket, BusinessConfig } from '@/lib/dualDatabase';
+import JsBarcode from 'jsbarcode';
 
 interface ThermalParkingTicketProps {
   ticket: ParkingTicket;
@@ -9,6 +10,7 @@ interface ThermalParkingTicketProps {
 }
 
 const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, businessConfig }) => {
+  const barcodeRef = useRef<SVGSVGElement>(null);
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -57,22 +59,60 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
     return ticket.id.replace(/[^0-9]/g, '').slice(0, 15).padStart(15, '0');
   };
 
+  // Generar código de barras cuando el componente se monte
+  useEffect(() => {
+    if (barcodeRef.current) {
+      try {
+        JsBarcode(barcodeRef.current, generateTicketBarcode(), {
+          format: 'CODE128',
+          width: 2,
+          height: 50,
+          displayValue: true,
+          fontSize: 14,
+          margin: 10,
+        });
+      } catch (error) {
+        console.error('Error generating barcode:', error);
+      }
+    }
+  }, [ticket.id]);
+
   return (
     <div id="thermal-receipt" className="thermal-receipt">
-      {/* Header */}
-      <div className="receipt-header" style={{ marginBottom: '10mm' }}>
-        <div className="receipt-title" style={{ fontSize: '32pt', marginBottom: '8mm', fontWeight: 'bold', lineHeight: '1.6' }}>
-          TICKET PARQUEADERO
-        </div>
-        <div className="receipt-business-name" style={{ fontSize: '32pt', marginBottom: '8mm', fontWeight: 'bold', lineHeight: '1.6' }}>
+      {/* Header con Logo */}
+      <div className="receipt-header" style={{ marginBottom: '10mm', textAlign: 'center' }}>
+        {/* Puedes agregar un logo aquí si lo deseas */}
+        <div className="receipt-business-name" style={{ fontSize: '36pt', marginBottom: '6mm', fontWeight: 'bold', lineHeight: '1.4' }}>
           {businessConfig?.businessName || 'WILSON CARS & WASH'}
         </div>
+        <div className="receipt-subtitle" style={{ fontSize: '28pt', marginBottom: '4mm', lineHeight: '1.4', color: '#666' }}>
+          Parking Professional
+        </div>
+        <div className="receipt-divider-thin" style={{ margin: '6mm 0', borderTop: '2px solid #000' }}></div>
+        
         {businessConfig?.businessAddress && (
-          <div className="receipt-subtitle" style={{ fontSize: '32pt', marginBottom: '6mm', lineHeight: '1.6' }}>{businessConfig.businessAddress}</div>
+          <div className="receipt-subtitle" style={{ fontSize: '26pt', marginBottom: '3mm', lineHeight: '1.4' }}>
+            📍 {businessConfig.businessAddress}
+          </div>
         )}
         {businessConfig?.businessPhone && (
-          <div className="receipt-subtitle" style={{ fontSize: '32pt', marginBottom: '6mm', lineHeight: '1.6' }}>Tel: {businessConfig.businessPhone}</div>
+          <div className="receipt-subtitle" style={{ fontSize: '26pt', marginBottom: '6mm', lineHeight: '1.4' }}>
+            📞 {businessConfig.businessPhone}
+          </div>
         )}
+      </div>
+
+      <div className="receipt-divider-double" style={{ margin: '8mm 0', borderTop: '4px double #000' }}></div>
+
+      {/* Título del Ticket */}
+      <div style={{ textAlign: 'center', marginBottom: '10mm' }}>
+        <div className="receipt-title" style={{ fontSize: '34pt', marginBottom: '6mm', fontWeight: 'bold', lineHeight: '1.6' }}>
+          🅿️ TICKET DE PARQUEADERO
+        </div>
+        <div style={{ fontSize: '28pt', marginBottom: '4mm', display: 'flex', justifyContent: 'center', alignItems: 'center', lineHeight: '1.6' }}>
+          <span style={{ fontWeight: 'normal', marginRight: '8px' }}>Ticket #:</span>
+          <span style={{ fontWeight: 'bold', letterSpacing: '2px' }}>P-{ticket.id.slice(-6).toUpperCase()}</span>
+        </div>
       </div>
 
       {/* Ticket Info */}
@@ -187,49 +227,21 @@ const ThermalParkingTicket: React.FC<ThermalParkingTicketProps> = ({ ticket, bus
 
       <div className="receipt-divider-double" style={{ margin: '12mm 0' }}></div>
 
-      {/* Barcode - Optimizado para escáner 1D Jaltech POS */}
-      <div className="receipt-barcode" style={{ marginTop: '12mm', marginBottom: '12mm' }}>
-        {/* Código numérico grande para lectura fácil */}
+      <div className="receipt-divider-double" style={{ margin: '10mm 0', borderTop: '4px double #000' }}></div>
+
+      {/* Código de Barras Funcional */}
+      <div className="receipt-barcode" style={{ marginTop: '12mm', marginBottom: '12mm', textAlign: 'center' }}>
+        <div style={{ padding: '8mm 0', background: 'white' }}>
+          <svg ref={barcodeRef}></svg>
+        </div>
         <div style={{ 
-          textAlign: 'center',
-          fontSize: '40pt',
-          fontWeight: 'bold',
-          letterSpacing: '5px',
+          fontSize: '24pt',
+          marginTop: '6mm',
+          letterSpacing: '3px',
           fontFamily: 'monospace',
-          marginBottom: '8mm',
-          lineHeight: '1.5'
+          color: '#666'
         }}>
-          {generateTicketBarcode()}
-        </div>
-        
-        {/* Representación visual del código de barras */}
-        <div style={{ 
-          height: '45mm', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          fontSize: '20pt',
-          letterSpacing: '1px',
-          fontFamily: 'Libre Barcode 128, monospace',
-          fontWeight: 'normal',
-          background: 'white',
-          padding: '6mm 0',
-          marginBottom: '8mm'
-        }}>
-          <div style={{ transform: 'scaleY(3)', letterSpacing: '0px' }}>
-            * {generateTicketBarcode()} *
-          </div>
-        </div>
-        
-        {/* Número legible debajo */}
-        <div className="receipt-barcode-text" style={{ 
-          fontSize: '32pt', 
-          marginTop: '8mm', 
-          fontWeight: 'bold',
-          letterSpacing: '4px',
-          fontFamily: 'monospace'
-        }}>
-          {generateTicketBarcode()}
+          *{ticket.placa}*P{ticket.id.slice(-6)}*
         </div>
       </div>
 

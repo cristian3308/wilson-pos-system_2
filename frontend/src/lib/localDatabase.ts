@@ -108,6 +108,11 @@ export interface BusinessConfig {
     footerMessage: string;
     footerInfo: string;
   };
+  // ✅ NUEVO: Precios para planes mensuales día/noche
+  monthlyPlanPrices?: {
+    day: number;
+    night: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -121,6 +126,7 @@ export interface MonthlySubscription {
   clientPhone: string;
   clientEmail?: string;
   subscriptionType: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom'; // Tipo de suscripción
+  timeType: 'day' | 'night'; // ✅ NUEVO: Modalidad diurna o nocturna
   customDays?: number; // Para suscripciones personalizadas
   startDate: Date;
   endDate: Date;
@@ -401,16 +407,57 @@ class LocalDatabase {
     return (await this.db.get('carwash_transactions', transactionId)) || null;
   }
 
-  async getAllCarwashTransactions(status?: string): Promise<CarwashTransaction[]> {
+  async getAllCarwashTransactions(status?: string, filters?: { fromDate?: Date; toDate?: Date }): Promise<CarwashTransaction[]> {
     await this.init();
+    
+    let transactions: CarwashTransaction[];
     
     if (status) {
       const tx = this.db.transaction('carwash_transactions', 'readonly');
       const index = tx.store.index('status');
-      return await index.getAll(status);
+      transactions = await index.getAll(status);
+    } else {
+      transactions = await this.db.getAll('carwash_transactions');
     }
     
-    return await this.db.getAll('carwash_transactions');
+    // Si no hay filtros de fecha, devolver todas las transacciones
+    if (!filters || (!filters.fromDate && !filters.toDate)) {
+      return transactions;
+    }
+    
+    // Filtrar por rango de fechas
+    return transactions.filter(transaction => {
+      // Usar la fecha de creación para filtrar
+      let transactionDate: Date | null = null;
+      
+      if (transaction.createdAt) {
+        transactionDate = new Date(transaction.createdAt);
+      }
+      
+      // Si no hay fecha válida, incluir la transacción
+      if (!transactionDate || isNaN(transactionDate.getTime())) {
+        return true;
+      }
+      
+      // Aplicar filtros de fecha
+      if (filters.fromDate) {
+        const fromDate = new Date(filters.fromDate);
+        fromDate.setHours(0, 0, 0, 0);
+        if (transactionDate < fromDate) {
+          return false;
+        }
+      }
+      
+      if (filters.toDate) {
+        const toDate = new Date(filters.toDate);
+        toDate.setHours(23, 59, 59, 999);
+        if (transactionDate > toDate) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   }
 
   async updateCarwashTransaction(transaction: CarwashTransaction): Promise<void> {
@@ -446,9 +493,52 @@ class LocalDatabase {
     // console.log(`✅ Registro de historial guardado localmente: ${record.placa}`);
   }
 
-  async getParkingHistory(): Promise<any[]> {
+  async getParkingHistory(filters?: { fromDate?: Date; toDate?: Date }): Promise<any[]> {
     await this.init();
-    return await this.db.getAll('vehicle_history');
+    const allRecords = await this.db.getAll('vehicle_history');
+    
+    // Si no hay filtros, devolver todo
+    if (!filters || (!filters.fromDate && !filters.toDate)) {
+      return allRecords;
+    }
+    
+    // Filtrar por rango de fechas
+    return allRecords.filter(record => {
+      // Convertir la fecha del registro de manera segura
+      let recordDate: Date | null = null;
+      
+      if (record.fecha) {
+        if (typeof record.fecha === 'string') {
+          recordDate = new Date(record.fecha);
+        } else if (record.fecha instanceof Date) {
+          recordDate = record.fecha;
+        }
+      }
+      
+      // Si no hay fecha válida, incluir el registro
+      if (!recordDate || isNaN(recordDate.getTime())) {
+        return true;
+      }
+      
+      // Aplicar filtros de fecha
+      if (filters.fromDate) {
+        const fromDate = new Date(filters.fromDate);
+        fromDate.setHours(0, 0, 0, 0);
+        if (recordDate < fromDate) {
+          return false;
+        }
+      }
+      
+      if (filters.toDate) {
+        const toDate = new Date(filters.toDate);
+        toDate.setHours(23, 59, 59, 999);
+        if (recordDate > toDate) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   }
 
   // === MÉTODOS DE UTILIDAD ===
@@ -462,14 +552,15 @@ class LocalDatabase {
       'carwash_services',
       'carwash_transactions',
       'business_config',
-      'vehicle_history'
+      'vehicle_history',
+      'monthly_subscriptions' // ✅ Agregar suscripciones mensuales
     ];
 
     for (const storeName of stores) {
       await this.db.clear(storeName);
     }
     
-    console.log('✅ Todos los datos locales han sido eliminados');
+    console.log('✅ Todos los datos locales han sido eliminados (incluyendo suscripciones)');
   }
 
   async exportData(): Promise<any> {
@@ -615,18 +706,25 @@ class LocalDatabase {
   async updateVehicleType(vehicleTypeId: string, updates: Partial<VehicleTypeConfig>): Promise<void> {
     await this.init();
     
+    console.log('🔧 updateVehicleType - vehicleTypeId:', vehicleTypeId);
+    console.log('🔧 updateVehicleType - updates recibidos:', updates);
+    
     const config = await this.getBusinessConfig();
     if (!config) {
       throw new Error('No se encontró configuración del negocio');
     }
 
     const vehicleTypes = config.vehicleTypes || [];
+    console.log('🔧 updateVehicleType - vehicleTypes antes:', vehicleTypes);
+    
     const typeIndex = vehicleTypes.findIndex(type => type.id === vehicleTypeId);
     
     if (typeIndex === -1) {
       throw new Error('Tipo de vehículo no encontrado');
     }
 
+    console.log('🔧 updateVehicleType - Tipo ANTES de actualizar:', vehicleTypes[typeIndex]);
+    
     // Actualizar el tipo
     vehicleTypes[typeIndex] = {
       ...vehicleTypes[typeIndex],
@@ -634,12 +732,16 @@ class LocalDatabase {
       updatedAt: new Date()
     };
 
+    console.log('🔧 updateVehicleType - Tipo DESPUÉS de actualizar:', vehicleTypes[typeIndex]);
+
     const updatedConfig = {
       ...config,
       vehicleTypes,
       updatedAt: new Date()
     };
 
+    console.log('🔧 updateVehicleType - Config COMPLETO a guardar:', updatedConfig);
+    
     await this.saveBusinessConfig(updatedConfig);
     console.log(`✅ Tipo de vehículo actualizado: ${vehicleTypeId}`);
   }
@@ -771,6 +873,153 @@ class LocalDatabase {
     }
     
     return deactivatedCount;
+  }
+
+  // === MÉTODOS PARA GESTIÓN DE CIERRES DE CAJA ===
+  
+  /**
+   * Guardar la fecha del último cierre de caja en localStorage
+   * @param closureDate Fecha y hora del cierre de caja
+   */
+  saveLastClosure(closureDate: Date): void {
+    if (typeof window !== 'undefined') {
+      const dateString = closureDate.toISOString();
+      localStorage.setItem('lastCashClosure', dateString);
+      console.log(`✅ Fecha de último cierre guardada: ${closureDate.toLocaleString('es-CO')}`);
+    }
+  }
+
+  /**
+   * Obtener la fecha del último cierre de caja desde localStorage
+   * @returns Fecha del último cierre o null si no existe
+   */
+  getLastClosure(): Date | null {
+    if (typeof window !== 'undefined') {
+      const dateString = localStorage.getItem('lastCashClosure');
+      if (dateString) {
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+          console.log(`📅 Último cierre recuperado: ${date.toLocaleString('es-CO')}`);
+          return date;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Limpiar la fecha del último cierre de caja
+   */
+  clearLastClosure(): void {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('lastCashClosure');
+      console.log('✅ Fecha de último cierre eliminada');
+    }
+  }
+
+  /**
+   * Obtener todas las transacciones de parqueadero completadas dentro de un rango de fechas
+   * @param fromDate Fecha de inicio del rango (opcional)
+   * @param toDate Fecha de fin del rango (opcional)
+   * @returns Lista de tickets completados filtrados por fecha
+   */
+  async getCompletedParkingTickets(fromDate?: Date, toDate?: Date): Promise<ParkingTicket[]> {
+    await this.init();
+    
+    // Obtener todos los tickets completados
+    const tx = this.db.transaction('parking_tickets', 'readonly');
+    const index = tx.store.index('status');
+    let tickets = await index.getAll('completed');
+    
+    // Si no hay filtros de fecha, devolver todos
+    if (!fromDate && !toDate) {
+      return tickets;
+    }
+    
+    // Filtrar por rango de fechas usando exitTime (fecha de salida/pago)
+    return tickets.filter(ticket => {
+      if (!ticket.exitTime) {
+        return false;
+      }
+      
+      const ticketDate = new Date(ticket.exitTime);
+      
+      if (isNaN(ticketDate.getTime())) {
+        return false;
+      }
+      
+      // Aplicar filtro de fecha desde
+      if (fromDate) {
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        if (ticketDate < from) {
+          return false;
+        }
+      }
+      
+      // Aplicar filtro de fecha hasta
+      if (toDate) {
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        if (ticketDate > to) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }
+
+  /**
+   * Obtener todas las transacciones de lavadero completadas dentro de un rango de fechas
+   * @param fromDate Fecha de inicio del rango (opcional)
+   * @param toDate Fecha de fin del rango (opcional)
+   * @returns Lista de transacciones completadas filtradas por fecha
+   */
+  async getCompletedCarwashTransactions(fromDate?: Date, toDate?: Date): Promise<CarwashTransaction[]> {
+    await this.init();
+    
+    // Obtener todas las transacciones completadas
+    const tx = this.db.transaction('carwash_transactions', 'readonly');
+    const index = tx.store.index('status');
+    let transactions = await index.getAll('completed');
+    
+    // Si no hay filtros de fecha, devolver todas
+    if (!fromDate && !toDate) {
+      return transactions;
+    }
+    
+    // Filtrar por rango de fechas usando endTime (fecha de finalización)
+    return transactions.filter(transaction => {
+      // Usar endTime si existe, sino usar createdAt
+      const transactionDate = transaction.endTime 
+        ? new Date(transaction.endTime)
+        : new Date(transaction.createdAt);
+      
+      if (isNaN(transactionDate.getTime())) {
+        return false;
+      }
+      
+      // Aplicar filtro de fecha desde
+      if (fromDate) {
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        if (transactionDate < from) {
+          return false;
+        }
+      }
+      
+      // Aplicar filtro de fecha hasta
+      if (toDate) {
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        if (transactionDate > to) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   }
 }
 

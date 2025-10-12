@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Save, Building2, DollarSign, Edit, Trash2, Eye, Car, Truck, Bike, Plus, Clock, X } from 'lucide-react';
 import { getDualDB, BusinessConfig } from '../lib/dualDatabase';
 import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
+const dualDB = getDualDB();
 import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 import DateRangeFilter, { DateRange } from './DateRangeFilter';
 import { useHistoryData } from '../hooks/useHistoryData';
@@ -272,14 +273,27 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
     setLoading(true);
     try {
       const dualDB = getDualDB();
+      
+      // 🔄 CRÍTICO: Recargar vehicleTypes FRESCOS desde IndexedDB antes de guardar
+      console.log('🔄 Recargando vehicleTypes FRESCOS antes de guardar configuración...');
+      const freshConfig = await dualDB.getBusinessConfig();
+      const freshVehicleTypes = freshConfig?.vehicleTypes || [];
+      console.log('✅ VehicleTypes FRESCOS obtenidos:', freshVehicleTypes);
+      
       const updatedConfig = {
         ...config,
+        vehicleTypes: freshVehicleTypes, // ✅ Usar vehicleTypes FRESCOS, no los de memoria
         updatedAt: new Date()
       };
       
+      console.log('💾 Guardando configuración con vehicleTypes actualizados:', updatedConfig);
       await dualDB.saveBusinessConfig(updatedConfig);
       setConfig(updatedConfig);
       setMessage('✅ Configuración guardada correctamente');
+      
+      // ✅ EMITIR EVENTO PARA QUE OTROS COMPONENTES SE ACTUALICEN
+      appEvents.emit(APP_EVENTS.CONFIG_UPDATED, updatedConfig);
+      console.log('📡 Evento CONFIG_UPDATED emitido - Configuración actualizada');
       
       // Notificar cambio si hay callback
       if (onConfigurationChange) {
@@ -324,6 +338,68 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
         [field]: value
       }
     });
+  };
+
+  const updateMonthlyPlanPrice = (timeType: 'day' | 'night', value: number) => {
+    if (!config) return;
+    
+    const monthlyPlanPrices = config.monthlyPlanPrices || {
+      day: 50000,
+      night: 40000
+    };
+    
+    setConfig({
+      ...config,
+      monthlyPlanPrices: {
+        ...monthlyPlanPrices,
+        [timeType]: value
+      }
+    });
+  };
+
+  // ✅ NUEVO: Función para recalcular automáticamente el monto - Sistema de MEDIAS HORAS
+  const recalculateParkingAmount = (entryTime: Date, exitTime: Date, vehicleType: string): number => {
+    if (!entryTime || !exitTime) return 0;
+    
+    const diffMs = exitTime.getTime() - entryTime.getTime();
+    const totalMinutes = Math.floor(diffMs / 60000);
+    
+    if (totalMinutes <= 0) return 0;
+    
+    // Obtener tarifa por hora según el tipo de vehículo
+    let hourlyRate = 3000; // Carro por defecto
+    if (vehicleType === 'motorcycle') {
+      hourlyRate = config?.motorcycleParkingRate || 2000;
+    } else if (vehicleType === 'truck') {
+      hourlyRate = config?.truckParkingRate || 4000;
+    } else if (vehicleType === 'car') {
+      hourlyRate = config?.carParkingRate || 3000;
+    }
+    
+    // Calcular horas completas y minutos restantes
+    const fullHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    
+    // Calcular costo
+    let totalAmount = 0;
+    
+    // Cobrar las horas completas
+    totalAmount += fullHours * hourlyRate;
+    
+    // Cobrar la fracción restante
+    if (remainingMinutes > 0) {
+      if (remainingMinutes <= 29) {
+        // 1-29 minutos = mitad del precio (media hora)
+        totalAmount += hourlyRate / 2;
+      } else {
+        // 30-60 minutos = precio completo (hora completa)
+        totalAmount += hourlyRate;
+      }
+    }
+    
+    console.log(`💰 Recálculo automático: ${totalMinutes} min (${fullHours}h ${remainingMinutes}min) = $${totalAmount}`);
+    
+    return totalAmount;
   };
 
   if (!config) {
@@ -738,154 +814,73 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
             </div>
             
             <div className="p-6">
-              {/* Sección 1: Identificación de la Empresa */}
-              <div className="mb-8">
-                <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-green-200">
-                  <div className="p-2 bg-green-500 rounded-lg">
+              {/* Sección única simplificada: Solo dirección */}
+              <div>
+                <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-blue-200">
+                  <div className="p-2 bg-blue-500 rounded-lg">
                     <Building2 className="w-5 h-5 text-white" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800">Identificación de la Empresa</h3>
+                  <h3 className="text-lg font-bold text-gray-800">Configuracion del Negocio</h3>
                 </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
-                    <label className="block text-xs font-bold text-green-800 uppercase tracking-wide mb-2">
-                      🏢 Nombre de la Empresa
-                    </label>
-                    <input
-                      type="text"
-                      value={config.ticketData?.companyName || ''}
-                      onChange={(e) => updateTicketData('companyName', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-800 font-semibold"
-                      placeholder="WILSON CARS & WASH"
-                    />
-                  </div>
-
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
-                    <label className="block text-xs font-bold text-green-800 uppercase tracking-wide mb-2">
-                      📝 Subtítulo / Eslogan
-                    </label>
-                    <input
-                      type="text"
-                      value={config.ticketData?.companySubtitle || ''}
-                      onChange={(e) => updateTicketData('companySubtitle', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-800"
-                      placeholder="PARKING PROFESSIONAL"
-                    />
-                  </div>
-
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-                    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">
-                      🆔 NIT o Documento
-                    </label>
-                    <input
-                      type="text"
-                      value={config.ticketData?.nit || ''}
-                      onChange={(e) => updateTicketData('nit', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800 font-mono"
-                      placeholder="19.475.534-7"
-                    />
-                  </div>
-
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-                    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">
-                      📍 Dirección Completa
-                    </label>
-                    <input
-                      type="text"
-                      value={config.ticketData?.address || ''}
-                      onChange={(e) => updateTicketData('address', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
-                      placeholder="Calle 123 #45-67, Bogotá D.C."
-                    />
-                  </div>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                  <label className="block text-sm font-bold text-blue-800 uppercase tracking-wide mb-3">
+                    📍 Direccion Completa
+                  </label>
+                  <input
+                    type="text"
+                    value={config.ticketData?.address || ''}
+                    onChange={(e) => updateTicketData('address', e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800 text-base"
+                    placeholder="Calle 123 #45-67, Bogota D.C."
+                  />
+                  <p className="text-xs text-blue-700 mt-3">Esta direccion aparecera en todos los tickets impresos</p>
                 </div>
               </div>
 
-              {/* Sección 2: Información de Contacto */}
-              <div className="mb-8">
+              {/* Sección de precios de planes mensuales */}
+              <div className="mt-6">
                 <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-purple-200">
                   <div className="p-2 bg-purple-500 rounded-lg">
-                    <span className="text-white text-xl">📞</span>
+                    <DollarSign className="w-5 h-5 text-white" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800">Información de Contacto</h3>
+                  <h3 className="text-lg font-bold text-gray-800">Precios Planes Mensuales</h3>
                 </div>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
-                    <label className="block text-xs font-bold text-purple-800 uppercase tracking-wide mb-2">
-                      📞 Teléfono
+                
+                <div className="grid md:grid-cols-2 gap-4">
+                  {/* Precio Diurno */}
+                  <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-6 rounded-xl border border-yellow-200">
+                    <label className="block text-sm font-bold text-yellow-800 uppercase tracking-wide mb-3">
+                      ☀️ Precio Plan Diurno
                     </label>
-                    <input
-                      type="text"
-                      value={config.ticketData?.phone || ''}
-                      onChange={(e) => updateTicketData('phone', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-800"
-                      placeholder="+57 (1) 234-5678"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-3 text-yellow-600 font-bold text-lg">$</span>
+                      <input
+                        type="number"
+                        value={config?.monthlyPlanPrices?.day || 0}
+                        onChange={(e) => updateMonthlyPlanPrice('day', parseFloat(e.target.value) || 0)}
+                        className="w-full pl-8 pr-4 py-3 border-2 border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white text-gray-800 text-lg font-semibold"
+                        placeholder="50000"
+                      />
+                    </div>
+                    <p className="text-xs text-yellow-700 mt-2">Precio para planes mensuales de día</p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
-                    <label className="block text-xs font-bold text-purple-800 uppercase tracking-wide mb-2">
-                      ✉️ Email
+                  {/* Precio Nocturno */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
+                    <label className="block text-sm font-bold text-indigo-800 uppercase tracking-wide mb-3">
+                      🌙 Precio Plan Nocturno
                     </label>
-                    <input
-                      type="email"
-                      value={config.ticketData?.email || ''}
-                      onChange={(e) => updateTicketData('email', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-800"
-                      placeholder="info@wilsoncarwash.com"
-                    />
-                  </div>
-
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
-                    <label className="block text-xs font-bold text-purple-800 uppercase tracking-wide mb-2">
-                      🌐 Sitio Web
-                    </label>
-                    <input
-                      type="text"
-                      value={config.ticketData?.website || ''}
-                      onChange={(e) => updateTicketData('website', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-800"
-                      placeholder="www.wilsoncarwash.com"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Sección 3: Mensajes del Ticket */}
-              <div>
-                <div className="flex items-center gap-3 mb-4 pb-3 border-b-2 border-amber-200">
-                  <div className="p-2 bg-amber-500 rounded-lg">
-                    <span className="text-white text-xl">💬</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-800">Mensajes Personalizados</h3>
-                </div>
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-4 rounded-xl border border-amber-200">
-                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wide mb-2">
-                      🎉 Mensaje de Despedida
-                    </label>
-                    <input
-                      type="text"
-                      value={config.ticketData?.footerMessage || ''}
-                      onChange={(e) => updateTicketData('footerMessage', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-gray-800"
-                      placeholder="¡Gracias por confiar en nosotros!"
-                    />
-                    <p className="text-xs text-amber-700 mt-2">Aparece al final del ticket</p>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-4 rounded-xl border border-amber-200">
-                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wide mb-2">
-                      ℹ️ Información Adicional
-                    </label>
-                    <textarea
-                      value={config.ticketData?.footerInfo || ''}
-                      onChange={(e) => updateTicketData('footerInfo', e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-2.5 border-2 border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-gray-800 resize-none"
-                      placeholder="Horario: 24/7 | Servicio completo de parqueadero"
-                    />
-                    <p className="text-xs text-amber-700 mt-2">Horarios, avisos o información relevante</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-3 text-indigo-600 font-bold text-lg">$</span>
+                      <input
+                        type="number"
+                        value={config?.monthlyPlanPrices?.night || 0}
+                        onChange={(e) => updateMonthlyPlanPrice('night', parseFloat(e.target.value) || 0)}
+                        className="w-full pl-8 pr-4 py-3 border-2 border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-800 text-lg font-semibold"
+                        placeholder="40000"
+                      />
+                    </div>
+                    <p className="text-xs text-indigo-700 mt-2">Precio para planes mensuales de noche</p>
                   </div>
                 </div>
               </div>
@@ -1025,6 +1020,114 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                     {parkingRecords.length} registros
                   </span>
                 </h3>
+                
+                {/* Botón de Recalcular Montos */}
+                <button
+                  onClick={async () => {
+                    if (confirm('¿Desea recalcular todos los montos de parqueadero según el tiempo real? Esto actualizará TODOS los registros completados del historial.')) {
+                      setLoading(true);
+                      try {
+                        let updatedCount = 0;
+                        
+                        // Cargar TODOS los registros del historial (vehicle_history)
+                        const allHistoryRecords = await dualDB.getParkingHistory();
+                        console.log('📊 Total registros en historial:', allHistoryRecords.length);
+                        
+                        for (const record of allHistoryRecords) {
+                          // Solo procesar registros completados con entrada y salida
+                          const hasValidTimes = record.entryTime && record.exitTime;
+                          const isCompleted = record.status === 'completed' || record.estado === 'Salió' || record.estado === 'Completado';
+                          
+                          if (hasValidTimes && isCompleted) {
+                            // Calcular tiempo exacto
+                            const entryTime = record.entryTime instanceof Date ? record.entryTime : new Date(record.entryTime);
+                            const exitTime = record.exitTime instanceof Date ? record.exitTime : new Date(record.exitTime);
+                            const diffMs = exitTime.getTime() - entryTime.getTime();
+                            const totalMinutes = Math.floor(diffMs / 60000);
+                            
+                            if (totalMinutes < 0) {
+                              console.warn('⚠️ Registro con tiempo negativo:', record.id || record.placa);
+                              continue;
+                            }
+                            
+                            // Obtener tarifa por hora según tipo de vehículo
+                            let hourlyRate = 3000; // Default para carro
+                            const vehicleType = record.vehicleType || 'car';
+                            
+                            if (vehicleType === 'motorcycle') {
+                              hourlyRate = config?.motorcycleParkingRate || 2000;
+                            } else if (vehicleType === 'truck') {
+                              hourlyRate = config?.truckParkingRate || 4000;
+                            } else if (vehicleType === 'car') {
+                              hourlyRate = config?.carParkingRate || 3000;
+                            }
+                            
+                            // Calcular precio con sistema de MEDIAS HORAS
+                            const fullHours = Math.floor(totalMinutes / 60);
+                            const remainingMinutes = totalMinutes % 60;
+                            
+                            let correctAmount = 0;
+                            
+                            // Cobrar las horas completas
+                            correctAmount += fullHours * hourlyRate;
+                            
+                            // Cobrar la fracción restante
+                            if (remainingMinutes > 0) {
+                              if (remainingMinutes <= 29) {
+                                // 1-29 minutos = mitad del precio (media hora)
+                                correctAmount += hourlyRate / 2;
+                              } else {
+                                // 30-60 minutos = precio completo (hora completa)
+                                correctAmount += hourlyRate;
+                              }
+                            }
+                            
+                            // Obtener el monto actual (puede estar en diferentes campos)
+                            const currentAmount = record.totalAmount || record.cobro || 0;
+                            
+                            // Solo actualizar si el monto es diferente
+                            if (currentAmount !== correctAmount) {
+                              console.log(`🔄 Actualizando ${record.placa}: $${currentAmount} → $${correctAmount} (${totalMinutes}min)`);
+                              
+                              const updatedRecord = {
+                                ...record,
+                                totalAmount: correctAmount,
+                                cobro: correctAmount, // También actualizar el campo cobro
+                                totalMinutes: totalMinutes
+                              };
+                              
+                              // Guardar en vehicle_history
+                              await dualDB.saveParkingRecord(updatedRecord);
+                              updatedCount++;
+                            }
+                          }
+                        }
+                        
+                        // Recargar datos con el rango de fechas actual del filtro
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const endOfDay = new Date(today);
+                        endOfDay.setHours(23, 59, 59, 999);
+                        
+                        await loadData({ startDate: today, endDate: endOfDay, period: 'today' });
+                        setMessage(`✅ ${updatedCount} registros actualizados con montos correctos`);
+                      } catch (error) {
+                        console.error('Error recalculando montos:', error);
+                        setMessage('❌ Error al recalcular montos');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }
+                  }}
+                  className="mb-3 w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all shadow-md flex items-center justify-center space-x-2"
+                  disabled={loading}
+                >
+                  <span>🔄</span>
+                  <span className="font-semibold">
+                    {loading ? 'Recalculando...' : 'Recalcular Todos los Montos'}
+                  </span>
+                </button>
+                
                 <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
                   {historyLoading ? (
                     <div className="text-center text-gray-500 py-8">
@@ -1281,6 +1384,7 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
             </div>
           </div>
         </div>
+
       </div>
 
       {/* 🧽 Modal para Agregar Servicio de Lavadero */}
@@ -1460,7 +1564,22 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                       <input
                         type="datetime-local"
                         value={editingRecord.entryTime ? new Date(editingRecord.entryTime).toISOString().slice(0, 16) : ''}
-                        onChange={(e) => setEditingRecord({...editingRecord, entryTime: new Date(e.target.value)})}
+                        onChange={(e) => {
+                          const newEntry = new Date(e.target.value);
+                          const updatedRecord = {...editingRecord, entryTime: newEntry};
+                          
+                          // ✅ Recalcular automáticamente si hay entrada y salida
+                          if (editingRecord.exitTime) {
+                            const newAmount = recalculateParkingAmount(
+                              newEntry, 
+                              new Date(editingRecord.exitTime), 
+                              editingRecord.vehicleType
+                            );
+                            updatedRecord.totalAmount = newAmount;
+                          }
+                          
+                          setEditingRecord(updatedRecord);
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -1470,7 +1589,22 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                       <input
                         type="datetime-local"
                         value={editingRecord.exitTime ? new Date(editingRecord.exitTime).toISOString().slice(0, 16) : ''}
-                        onChange={(e) => setEditingRecord({...editingRecord, exitTime: e.target.value ? new Date(e.target.value) : null})}
+                        onChange={(e) => {
+                          const newExit = e.target.value ? new Date(e.target.value) : null;
+                          const updatedRecord = {...editingRecord, exitTime: newExit};
+                          
+                          // ✅ Recalcular automáticamente si hay entrada y salida
+                          if (editingRecord.entryTime && newExit) {
+                            const newAmount = recalculateParkingAmount(
+                              new Date(editingRecord.entryTime), 
+                              newExit, 
+                              editingRecord.vehicleType
+                            );
+                            updatedRecord.totalAmount = newAmount;
+                          }
+                          
+                          setEditingRecord(updatedRecord);
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>

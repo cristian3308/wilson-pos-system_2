@@ -30,6 +30,24 @@ export default function ParkingManagement({ className }: ParkingManagementProps)
 
   useEffect(() => {
     loadData();
+
+    // ✅ ESCUCHAR CAMBIOS EN LA CONFIGURACIÓN EMPRESARIAL
+    const handleConfigUpdate = async (updatedConfig: BusinessConfig) => {
+      console.log('📡 ParkingManagement - Configuración actualizada, recargando...');
+      setBusinessConfig(updatedConfig);
+      await loadData(); // Recargar todo para asegurar sincronización
+    };
+
+    // Importar appEvents solo en el cliente
+    import('../lib/eventEmitter').then(({ appEvents, APP_EVENTS }) => {
+      appEvents.on(APP_EVENTS.CONFIG_UPDATED, handleConfigUpdate);
+    });
+
+    return () => {
+      import('../lib/eventEmitter').then(({ appEvents, APP_EVENTS }) => {
+        appEvents.off(APP_EVENTS.CONFIG_UPDATED, handleConfigUpdate);
+      });
+    };
   }, []);
 
   const loadData = async () => {

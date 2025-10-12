@@ -27,6 +27,7 @@ const parqueadero_1 = __importDefault(require("./routes/parqueadero"));
 const lavadero_1 = __importDefault(require("./routes/lavadero"));
 const configuracion_1 = __importDefault(require("./routes/configuracion"));
 const dashboard_1 = __importDefault(require("./routes/dashboard"));
+const cashClosureRoutes_1 = __importDefault(require("./routes/cashClosureRoutes"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -94,6 +95,7 @@ app.use('/api/v1', demo_1.default);
 app.use('/api/v1', parqueadero_1.default);
 app.use('/api/v1', lavadero_1.default);
 app.use('/api/v1', configuracion_1.default);
+app.use('/api/v1', cashClosureRoutes_1.default);
 io.on('connection', (socket) => {
     logger_1.default.info(`User connected: ${socket.id}`);
     socket.on('join-room', (room) => {

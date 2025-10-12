@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { dualDatabase } from '@/lib/dualDatabase';
 import { parkingSystem } from '@/lib/parkingSystem';
 
+interface DateFilter {
+  from: Date | null;
+  to: Date | null;
+  filter: 'lastClosure' | 'today' | 'week' | 'month' | 'custom' | 'all';
+}
+
 interface DashboardData {
   metrics: {
     totalRevenue: number;
@@ -48,7 +54,7 @@ interface DashboardData {
   }>;
 }
 
-export const useDashboardDataReal = () => {
+export const useDashboardDataReal = (dateFilter?: DateFilter) => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +81,48 @@ export const useDashboardDataReal = () => {
 
   const calculateTodayRevenue = async () => {
     try {
-      // Usar el nuevo sistema de ingresos diarios
+      // Si hay filtro de fecha activo, usar las fechas del filtro
+      if (dateFilter && dateFilter.filter !== 'all' && dateFilter.from && dateFilter.to) {
+        const vehicles = await dualDatabase.getParkingHistory();
+        const fromDate = new Date(dateFilter.from);
+        const toDate = new Date(dateFilter.to);
+        
+        // ✅ NO modificar las horas - usar la hora exacta del cierre
+        // El filtro debe ser desde la hora del cierre hasta ahora
+        
+        console.log('📅 [useDashboardDataReal] Calculando con filtro:', {
+          from: fromDate.toLocaleString('es-CO'),
+          to: toDate.toLocaleString('es-CO')
+        });
+
+        return vehicles
+          .filter(v => {
+            const isCompleted = v.estado === 'Completado' || v.estado === 'Salió' || v.estado === 'salio';
+            if (!isCompleted) return false;
+
+            // Buscar fecha de salida en varios campos posibles
+            const dateFields = ['fechaSalida', 'salida', 'fechaEntrada', 'entrada'];
+            let recordDate: Date | null = null;
+
+            for (const field of dateFields) {
+              const dateValue = (v as any)[field];
+              if (dateValue && dateValue !== '-') {
+                try {
+                  recordDate = new Date(dateValue);
+                  if (!isNaN(recordDate.getTime())) break;
+                } catch {}
+              }
+            }
+
+            if (!recordDate) return false;
+
+            const isInRange = recordDate >= fromDate && recordDate <= toDate;
+            return isInRange;
+          })
+          .reduce((total, v) => total + (v.cobro || 0), 0);
+      }
+
+      // Sin filtro: usar el sistema de ingresos diarios normal
       const todayRevenue = await parkingSystem.getDailyParkingRevenue();
       return todayRevenue.totalRevenue;
     } catch (error) {
@@ -96,6 +143,7 @@ export const useDashboardDataReal = () => {
 
   const loadDashboardData = async () => {
     try {
+      console.log('🔄 [useDashboardDataReal] Recargando dashboard con filtro:', dateFilter);
       setIsLoading(true);
       setError(null);
 
@@ -118,10 +166,23 @@ export const useDashboardDataReal = () => {
         t.status === 'active' && !t.isPaid && !t.exitTime
       )?.length || 0;
       const totalVehicles = parkingHistory?.length || 0;
+      
+      // ✅ CALCULAR INGRESOS DE PARQUEADERO CON FILTRO (si aplica)
       const parkingRevenue = await calculateTodayRevenue();
 
       // Calcular métricas del lavadero
       const today = new Date().toISOString().split('T')[0];
+      
+      // ✅ LOG DE DEBUG: Mostrar estado del filtro
+      if (dateFilter && dateFilter.filter !== 'all') {
+        console.log('🔍 [useDashboardDataReal] FILTRO ACTIVO:', {
+          filter: dateFilter.filter,
+          from: dateFilter.from?.toLocaleString('es-CO'),
+          to: dateFilter.to?.toLocaleString('es-CO')
+        });
+      } else {
+        console.log('🔍 [useDashboardDataReal] Sin filtro - Mostrando datos de HOY');
+      }
       // ✅ ACTUALIZADO: Filtrar SOLO órdenes ACTIVAS (pendiente + en_proceso)
       // EXCLUIR: completed y cancelled (facturado)
       const activeWashes = carwashTransactions?.filter((o: any) => {
@@ -139,18 +200,50 @@ export const useDashboardDataReal = () => {
         (o.status === 'completed' || o.estado === 'completado')
       )?.length || 0;
       
-      // Calcular ingresos del lavadero SOLO DEL DÍA DE HOY
-      const carwashRevenue = carwashTransactions
-        ?.filter((o: any) => {
+      // Calcular ingresos del lavadero con filtro de fecha
+      let filteredCarwashTransactions = carwashTransactions;
+      
+      if (dateFilter && dateFilter.filter !== 'all' && dateFilter.from && dateFilter.to) {
+        const fromDate = new Date(dateFilter.from);
+        const toDate = new Date(dateFilter.to);
+        
+        // ✅ NO modificar las horas - usar la hora exacta del rango
+        
+        console.log('📅 [useDashboardDataReal] Filtrando lavadero desde:', fromDate.toLocaleString('es-CO'), 'hasta:', toDate.toLocaleString('es-CO'));
+
+        filteredCarwashTransactions = carwashTransactions?.filter((o: any) => {
+          const isCompleted = (o.status === 'completed' || o.estado === 'completado');
+          if (!isCompleted) return false;
+
+          const transactionDate = o.createdAt ? new Date(o.createdAt) : 
+                                 o.startTime ? new Date(o.startTime) :
+                                 o.horaCreacion ? new Date(o.horaCreacion) : null;
+          
+          if (!transactionDate) return false;
+
+          const isInRange = transactionDate >= fromDate && transactionDate <= toDate;
+          return isInRange;
+        });
+
+        console.log('📊 Transacciones filtradas de lavadero:', filteredCarwashTransactions?.length || 0);
+      } else {
+        // Sin filtro: solo del día de hoy
+        filteredCarwashTransactions = carwashTransactions?.filter((o: any) => {
           const isCompleted = (o.status === 'completed' || o.estado === 'completado');
           const transactionDate = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : 
                                  o.horaCreacion ? new Date(o.horaCreacion).toISOString().split('T')[0] : null;
           const isToday = transactionDate === today;
           return isCompleted && isToday;
-        })
+        });
+      }
+
+      const carwashRevenue = filteredCarwashTransactions
         ?.reduce((total: number, o: any) => total + (o.basePrice || o.total || 0), 0) || 0;
       
-      // console.log('💰 Ingresos de lavadero HOY:', carwashRevenue);
+      console.log('💰 [useDashboardDataReal] Ingresos calculados:');
+      console.log('   📍 Parqueadero:', parkingRevenue);
+      console.log('   🧼 Lavadero:', carwashRevenue);
+      console.log('   📊 Transacciones lavadero filtradas:', filteredCarwashTransactions?.length || 0);
 
       // Calcular métricas de suscripciones mensuales
       const activeSubscriptions = monthlySubscriptions?.filter((sub: any) => sub.isActive)?.length || 0;
@@ -353,7 +446,7 @@ export const useDashboardDataReal = () => {
     // Actualizar datos cada 30 segundos
     const interval = setInterval(loadDashboardData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [dateFilter]); // ✅ Recargar cuando cambie el filtro de fecha
 
   return {
     data,

@@ -1,0 +1,397 @@
+================================================================================
+  CAMBIOS PENDIENTES - SISTEMA POS WEB PROFESSIONAL
+  Fecha: 11 de Octubre 2025
+================================================================================
+
+═══════════════════════════════════════════════════════════════════════════════
+1. CIERRE DE CAJA CON PDF
+═══════════════════════════════════════════════════════════════════════════════
+
+UBICACIÓN: Dashboard Principal
+ARCHIVO: frontend/src/components/AdvancedDashboard.tsx
+
+FUNCIONALIDAD:
+✓ Botón "Cerrar Caja" en el dashboard
+✓ Al hacer click, generar PDF con:
+  
+  SECCIONES DEL PDF:
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 1. ENCABEZADO                                               │
+  │    - Nombre del negocio                                     │
+  │    - Fecha y hora del cierre                                │
+  │    - Usuario que cierra la caja                             │
+  └─────────────────────────────────────────────────────────────┘
+  
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 2. RESUMEN PARQUEADERO                                      │
+  │    - Total de vehículos atendidos                           │
+  │    - Desglose por tipo de vehículo:                         │
+  │      * Moto: cantidad y total $                             │
+  │      * Carro: cantidad y total $                            │
+  │      * Camioneta: cantidad y total $                        │
+  │      * etc...                                               │
+  │    - Total ingreso parqueadero: $XXX,XXX                    │
+  └─────────────────────────────────────────────────────────────┘
+  
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 3. RESUMEN LAVADERO                                         │
+  │    - Total de servicios realizados                          │
+  │    - Desglose por servicio:                                 │
+  │      * Lavado completo: cantidad y total $                  │
+  │      * Lavado exterior: cantidad y total $                  │
+  │      * etc...                                               │
+  │    - Total ingreso lavadero: $XXX,XXX                       │
+  └─────────────────────────────────────────────────────────────┘
+  
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 4. COMISIONES DE TRABAJADORES                               │
+  │    - Lista de trabajadores con comisiones:                  │
+  │      Nombre           Servicios    Comisión                 │
+  │      Juan Pérez       12           $25,000                  │
+  │      María García     8            $18,000                  │
+  │    - Total comisiones: $XXX,XXX                             │
+  └─────────────────────────────────────────────────────────────┘
+  
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 5. RESUMEN FINAL                                            │
+  │    Ingresos Totales:         $XXX,XXX                       │
+  │    - Comisiones:             $XXX,XXX                       │
+  │    ─────────────────────────────────                        │
+  │    GANANCIA NETA DEL DÍA:    $XXX,XXX                       │
+  └─────────────────────────────────────────────────────────────┘
+
+ARCHIVOS A CREAR/MODIFICAR:
+□ frontend/src/components/CashClosureReport.tsx (NUEVO)
+□ frontend/src/components/AdvancedDashboard.tsx (MODIFICAR)
+□ backend/src/routes/reportRoutes.ts (MODIFICAR)
+□ backend/src/controllers/ReportController.ts (NUEVO)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+2. SECCIÓN DE REPORTES COMPLETA
+═══════════════════════════════════════════════════════════════════════════════
+
+UBICACIÓN: Nueva página /reportes
+ARCHIVO: frontend/src/app/reportes/page.tsx (NUEVO)
+
+FUNCIONALIDAD:
+✓ Página completa de reportes con:
+
+  TIPOS DE REPORTES:
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 1. Reporte de Parqueadero                                   │
+  │    - Vehículos por tipo                                     │
+  │    - Ingresos diarios/mensuales                             │
+  │    - Ocupación promedio                                     │
+  │    - Horas pico                                             │
+  └─────────────────────────────────────────────────────────────┘
+  
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 2. Reporte de Lavadero                                      │
+  │    - Servicios más solicitados                              │
+  │    - Ingresos por servicio                                  │
+  │    - Tiempo promedio por servicio                           │
+  │    - Trabajadores más productivos                           │
+  └─────────────────────────────────────────────────────────────┘
+  
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 3. Reporte Financiero                                       │
+  │    - Ingresos totales                                       │
+  │    - Comparación mes anterior                               │
+  │    - Proyección de ingresos                                 │
+  │    - Gráfica de crecimiento                                 │
+  └─────────────────────────────────────────────────────────────┘
+  
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 4. Reporte de Trabajadores                                  │
+  │    - Comisiones pagadas                                     │
+  │    - Rendimiento individual                                 │
+  │    - Servicios completados                                  │
+  └─────────────────────────────────────────────────────────────┘
+
+  FILTROS DISPONIBLES:
+  ┌─────────────────────────────────────────────────────────────┐
+  │ • Por Día        → Seleccionar fecha específica             │
+  │ • Por Semana     → Última semana                            │
+  │ • Por Mes        → Seleccionar mes y año                    │
+  │ • Por Año        → Seleccionar año                          │
+  │ • Personalizado  → Rango de fechas inicio-fin               │
+  └─────────────────────────────────────────────────────────────┘
+
+  GRÁFICAS:
+  ┌─────────────────────────────────────────────────────────────┐
+  │ • Gráfica de barras: Ingresos por día/mes                   │
+  │ • Gráfica de líneas: Tendencia de crecimiento               │
+  │ • Gráfica de pastel: Distribución de ingresos               │
+  │ • Gráfica de área: Comparación parqueadero vs lavadero      │
+  └─────────────────────────────────────────────────────────────┘
+
+  EXPORTACIÓN:
+  ┌─────────────────────────────────────────────────────────────┐
+  │ • Exportar a PDF                                            │
+  │ • Exportar a Excel                                          │
+  │ • Imprimir reporte                                          │
+  └─────────────────────────────────────────────────────────────┘
+
+ARCHIVOS A CREAR/MODIFICAR:
+□ frontend/src/app/reportes/page.tsx (NUEVO)
+□ frontend/src/components/reports/ReportsLayout.tsx (NUEVO)
+□ frontend/src/components/reports/ParkingReport.tsx (NUEVO)
+□ frontend/src/components/reports/CarwashReport.tsx (NUEVO)
+□ frontend/src/components/reports/FinancialReport.tsx (NUEVO)
+□ frontend/src/components/reports/WorkersReport.tsx (NUEVO)
+□ frontend/src/components/reports/ReportFilters.tsx (NUEVO)
+□ frontend/src/components/reports/ReportCharts.tsx (NUEVO)
+□ backend/src/routes/reportRoutes.ts (MODIFICAR)
+□ backend/src/controllers/ReportController.ts (MODIFICAR)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+3. MEJORAR CONFIGURACIÓN EMPRESARIAL
+═══════════════════════════════════════════════════════════════════════════════
+
+UBICACIÓN: Configuración Empresarial
+ARCHIVO: frontend/src/components/BusinessConfigurationPanel.tsx
+
+MEJORAS EN PARQUEADERO:
+┌─────────────────────────────────────────────────────────────┐
+│ CONFIGURACIÓN DE PRECIOS - PARQUEADERO                      │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────┐   │
+│ │ Tipo de Vehículo    Precio/Hora    Acciones         │   │
+│ ├─────────────────────────────────────────────────────┤   │
+│ │ Moto                $1,500          [Editar] [💾]    │   │
+│ │ Carro               $2,000          [Editar] [💾]    │   │
+│ │ Camioneta           $3,000          [Editar] [💾]    │   │
+│ │ Buseta              $5,000          [Editar] [💾]    │   │
+│ └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│ [+ Agregar Nuevo Tipo de Vehículo]                         │
+└─────────────────────────────────────────────────────────────┘
+
+MEJORAS EN LAVADERO:
+┌─────────────────────────────────────────────────────────────┐
+│ CONFIGURACIÓN DE SERVICIOS - LAVADERO                       │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────┐   │
+│ │ Servicio              Precio    Duración  Acciones   │   │
+│ ├─────────────────────────────────────────────────────┤   │
+│ │ Lavado Completo       $50,000   60 min   [✏️] [💾]  │   │
+│ │ Lavado Exterior       $40,000   45 min   [✏️] [💾]  │   │
+│ │ Lavado Interior       $30,000   30 min   [✏️] [💾]  │   │
+│ │ Encerado             $25,000   20 min   [✏️] [💾]  │   │
+│ └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│ [+ Agregar Nuevo Servicio]                                  │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────┐   │
+│ │ COMISIONES DE TRABAJADORES                          │   │
+│ │                                                     │   │
+│ │ Porcentaje de comisión: [15%] %                    │   │
+│ │                                                     │   │
+│ │ ☑ Calcular comisión automáticamente                │   │
+│ └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+
+VISUALIZACIÓN:
+✓ Cards más grandes y organizados
+✓ Iconos descriptivos
+✓ Colores diferenciados por sección
+✓ Confirmación antes de guardar cambios
+✓ Mensaje de éxito/error al guardar
+
+ARCHIVOS A CREAR/MODIFICAR:
+□ frontend/src/components/BusinessConfigurationPanel.tsx (MODIFICAR)
+□ frontend/src/components/ParkingPriceConfig.tsx (NUEVO)
+□ frontend/src/components/CarwashServiceConfig.tsx (NUEVO)
+□ backend/src/routes/configuracion.ts (MODIFICAR)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+4. MEJORAR RECIBOS (TICKETS)
+═══════════════════════════════════════════════════════════════════════════════
+
+A. RECIBO DE PARQUEADERO
+ARCHIVO: frontend/src/components/ThermalParkingTicket.tsx
+
+DISEÑO MEJORADO:
+┌─────────────────────────────────────────────────┐
+│          WILSON CARS & WASH                     │
+│          Parking Professional                   │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  TICKET DE PARQUEADERO                          │
+│  Ticket #: P-001234                             │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  📅 Fecha Entrada:   11/10/2025                 │
+│  🕐 Hora Entrada:    08:30 AM                   │
+│                                                 │
+│  🚗 Tipo Vehículo:   CARRO                      │
+│  🅿️  Placa:          ABC-123                    │
+│  📍 Espacio:         A-15                       │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  💵 TARIFA                                      │
+│                                                 │
+│  Precio por hora:      $2,000                   │
+│  Hora(s):              3.5                      │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  TOTAL A PAGAR:        $7,000                   │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  [████████████████████████]                     │
+│      *ABC123*P001234*                           │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  ¡Gracias por su visita!                        │
+│  Vuelva pronto                                  │
+│                                                 │
+│  📞 Contacto: (123) 456-7890                    │
+│  📧 info@wilsoncars.com                         │
+└─────────────────────────────────────────────────┘
+
+
+B. RECIBO DE LAVADERO
+ARCHIVO: frontend/src/components/ThermalCarwashTicket.tsx (NUEVO)
+
+DISEÑO MEJORADO:
+┌─────────────────────────────────────────────────┐
+│          WILSON CARS & WASH                     │
+│          Lavadero Professional                  │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  TICKET DE LAVADERO                             │
+│  Ticket #: L-001234                             │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  📅 Fecha:           11/10/2025                 │
+│  🕐 Hora:            02:30 PM                   │
+│                                                 │
+│  🚗 Tipo Vehículo:   CARRO                      │
+│  🅿️  Placa:          ABC-123                    │
+│  👤 Trabajador:      Juan Pérez                 │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  🧼 SERVICIOS                                   │
+│                                                 │
+│  • Lavado Completo          $50,000             │
+│  • Encerado                 $25,000             │
+│                             ───────             │
+│                                                 │
+│  Subtotal:                  $75,000             │
+│  IVA (19%):                 $14,250             │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  TOTAL A PAGAR:             $89,250             │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  Método de pago: Efectivo                       │
+│  Pagado: $90,000                                │
+│  Cambio: $750                                   │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  [████████████████████████]                     │
+│      *ABC123*L001234*                           │
+│                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                 │
+│  ¡Gracias por confiar en nosotros!              │
+│  Vuelva pronto                                  │
+│                                                 │
+│  📞 Contacto: (123) 456-7890                    │
+│  📧 info@wilsoncars.com                         │
+└─────────────────────────────────────────────────┘
+
+MEJORAS EN AMBOS RECIBOS:
+✓ Logo del negocio
+✓ Información de contacto
+✓ Código de barras funcional
+✓ Diseño más limpio y profesional
+✓ Información detallada y organizada
+✓ Totales bien resaltados
+
+ARCHIVOS A CREAR/MODIFICAR:
+□ frontend/src/components/ThermalParkingTicket.tsx (MODIFICAR)
+□ frontend/src/components/ThermalCarwashTicket.tsx (NUEVO)
+□ frontend/src/components/CarwashManagement.tsx (MODIFICAR)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+RESUMEN DE ARCHIVOS A CREAR/MODIFICAR
+═══════════════════════════════════════════════════════════════════════════════
+
+FRONTEND - NUEVOS ARCHIVOS:
+□ src/app/reportes/page.tsx
+□ src/components/CashClosureReport.tsx
+□ src/components/reports/ReportsLayout.tsx
+□ src/components/reports/ParkingReport.tsx
+□ src/components/reports/CarwashReport.tsx
+□ src/components/reports/FinancialReport.tsx
+□ src/components/reports/WorkersReport.tsx
+□ src/components/reports/ReportFilters.tsx
+□ src/components/reports/ReportCharts.tsx
+□ src/components/ParkingPriceConfig.tsx
+□ src/components/CarwashServiceConfig.tsx
+□ src/components/ThermalCarwashTicket.tsx
+
+FRONTEND - ARCHIVOS A MODIFICAR:
+□ src/components/AdvancedDashboard.tsx
+□ src/components/BusinessConfigurationPanel.tsx
+□ src/components/ThermalParkingTicket.tsx
+□ src/components/CarwashManagement.tsx
+
+BACKEND - NUEVOS ARCHIVOS:
+□ src/controllers/ReportController.ts
+
+BACKEND - ARCHIVOS A MODIFICAR:
+□ src/routes/reportRoutes.ts
+□ src/routes/configuracion.ts
+
+
+═══════════════════════════════════════════════════════════════════════════════
+PRIORIDADES DE IMPLEMENTACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+FASE 1 (ALTA PRIORIDAD):
+1. ✅ Mejorar Configuración Empresarial (más fácil)
+2. ✅ Mejorar Recibos de Parqueadero y Lavadero
+3. ✅ Cierre de Caja con PDF
+
+FASE 2 (MEDIA PRIORIDAD):
+4. ✅ Sección de Reportes con filtros básicos
+5. ✅ Gráficas de reportes
+
+FASE 3 (COMPLETAR):
+6. ✅ Exportación a Excel
+7. ✅ Reportes avanzados con más métricas
+
+
+═══════════════════════════════════════════════════════════════════════════════
+NOTAS IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════════
+
+• Todos los cambios mantienen compatibilidad con el sistema actual
+• Los recibos deben funcionar con impresoras térmicas (58mm y 80mm)
+• Los PDFs deben generarse con jsPDF
+• Las gráficas usar Recharts (ya instalado)
+• Todos los precios se guardan en la base de datos SQLite
+• Mantener el diseño consistente con Tailwind CSS
+• Usar los colores del tema actual (azul, cyan, naranja)
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

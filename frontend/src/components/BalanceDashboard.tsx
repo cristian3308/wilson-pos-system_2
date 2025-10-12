@@ -18,11 +18,17 @@ import {
   Droplet,
   CalendarCheck,
   FileSpreadsheet,
-  Printer
+  Printer,
+  FileText
 } from 'lucide-react';
 import { getDualDB, ParkingTicket, CarwashTransaction, BusinessConfig } from '@/lib/dualDatabase';
+import { getLocalDB } from '@/lib/localDatabase';
+import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 import toast from 'react-hot-toast';
 import ThermalBalanceReceipt from './ThermalBalanceReceipt';
+import DateRangePicker, { DateRange as DateRangeFilter } from '@/components/DateRangePicker';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import '../styles/thermal-receipt.css';
 
 type PeriodType = 'weekly' | 'biweekly' | 'monthly' | 'custom';
@@ -61,12 +67,68 @@ const BalanceDashboard: React.FC = () => {
   const [endDate, setEndDate] = useState<string>('');
   const [businessConfig, setBusinessConfig] = useState<BusinessConfig | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  
+  // Estados para el filtro de fecha con DateRangePicker
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRangeFilter>({
+    from: null,
+    to: null,
+    filter: 'all'
+  });
+  const [lastClosureDate, setLastClosureDate] = useState<Date | null>(null);
+
+  // Cargar fecha del último cierre
+  useEffect(() => {
+    const localDBInstance = getLocalDB();
+    const lastClosure = localDBInstance.getLastClosure();
+    setLastClosureDate(lastClosure);
+    
+    if (lastClosure) {
+      const hoursSinceLastClosure = (Date.now() - lastClosure.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastClosure < 24) {
+        console.log(`📅 [BalanceDashboard] Último cierre hace ${Math.floor(hoursSinceLastClosure)} horas`);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     loadBalanceData();
-  }, [selectedPeriod, startDate, endDate]);
+  }, [selectedPeriod, startDate, endDate, dateRange]);
+
+  // 🎧 Escuchar evento de cierre de caja completado
+  useEffect(() => {
+    const handleCashClosure = (data: { closureDate: Date }) => {
+      console.log('📡 [BalanceDashboard] Cierre de caja detectado, aplicando filtro automático...');
+      
+      // Actualizar la fecha del último cierre
+      setLastClosureDate(data.closureDate);
+      
+      // Aplicar automáticamente el filtro "Desde último cierre"
+      setDateRange({
+        from: data.closureDate,
+        to: new Date(),
+        filter: 'lastClosure'
+      });
+      
+      console.log('✅ [BalanceDashboard] Filtro aplicado desde:', data.closureDate.toLocaleString('es-CO'));
+    };
+
+    appEvents.on(APP_EVENTS.CASH_CLOSURE_COMPLETED, handleCashClosure);
+
+    return () => {
+      appEvents.off(APP_EVENTS.CASH_CLOSURE_COMPLETED, handleCashClosure);
+    };
+  }, []);
 
   const calculateDateRange = (): { start: Date; end: Date; days: number } => {
+    // Priorizar filtro de DateRangePicker si está activo
+    if (dateRange.filter !== 'all' && dateRange.from && dateRange.to) {
+      const start = new Date(dateRange.from);
+      const end = new Date(dateRange.to);
+      const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+      return { start, end, days };
+    }
+    
     const now = new Date();
     const end = new Date(now);
     let start = new Date(now);
@@ -227,45 +289,149 @@ const BalanceDashboard: React.FC = () => {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToPDF = () => {
     const { start, end } = calculateDateRange();
-    const headers = [
-      'Concepto',
-      'Cantidad',
-      'Monto'
+    const doc = new jsPDF();
+    
+    // Configuración del documento
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let yPosition = 20;
+
+    // Encabezado - Nombre de la empresa
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    const companyName = businessConfig?.ticketData?.companyName || businessConfig?.businessName || 'WILSON CARS & WASH';
+    doc.text(companyName, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 8;
+
+    // Dirección
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const address = businessConfig?.ticketData?.address || businessConfig?.businessAddress || 'Dirección del negocio';
+    doc.text(address, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 12;
+
+    // Línea separadora
+    doc.setDrawColor(0, 150, 136);
+    doc.setLineWidth(0.5);
+    doc.line(20, yPosition, pageWidth - 20, yPosition);
+    yPosition += 10;
+
+    // Título del reporte
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 150, 136);
+    doc.text(`INFORME DE BALANCE - ${getPeriodLabel().toUpperCase()}`, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 8;
+
+    // Período
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    const periodText = `Período: ${start.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })} - ${end.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}`;
+    doc.text(periodText, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Resetear color del texto
+    doc.setTextColor(0, 0, 0);
+
+    // Tabla principal de ingresos
+    const tableData = [
+      ['🚗 Ingresos de Parqueadero', balance.parkingServices.toString() + ' servicios', formatCurrency(balance.parkingIncome)],
+      ['🧼 Ingresos de Lavadero (Empresa)', balance.carwashServices.toString() + ' servicios', formatCurrency(balance.carwashIncome)],
+      ['👨‍💼 Comisiones Trabajadores', '-', formatCurrency(balance.workerCommissions)]
     ];
 
-    const rows = [
-      ['Ingresos de Parqueadero', balance.parkingServices.toString(), formatCurrency(balance.parkingIncome)],
-      ['Ingresos de Lavadero (Empresa)', balance.carwashServices.toString(), formatCurrency(balance.carwashIncome)],
-      ['Comisiones Trabajadores', '', formatCurrency(balance.workerCommissions)],
-      ['', '', ''],
-      ['TOTAL BRUTO', balance.totalServices.toString(), formatCurrency(balance.totalIncome)],
-      ['TOTAL NETO (Empresa)', '', formatCurrency(balance.netIncome)],
-      ['', '', ''],
-      ['Promedio Diario', '', formatCurrency(balance.dailyAverage)]
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Concepto', 'Cantidad', 'Monto']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [0, 150, 136],
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 11
+      },
+      bodyStyles: {
+        fontSize: 10
+      },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 50, halign: 'center' },
+        2: { cellWidth: 50, halign: 'right' }
+      },
+      margin: { left: 20, right: 20 }
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 10;
+
+    // Tabla de totales
+    const totalsData = [
+      ['💰 TOTAL BRUTO', balance.totalServices.toString() + ' servicios', formatCurrency(balance.totalIncome)],
+      ['✅ TOTAL NETO (Empresa)', '-', formatCurrency(balance.netIncome)],
+      ['📊 Promedio Diario', '-', formatCurrency(balance.dailyAverage)]
     ];
 
+    autoTable(doc, {
+      startY: yPosition,
+      body: totalsData,
+      theme: 'plain',
+      bodyStyles: {
+        fontSize: 11,
+        fontStyle: 'bold',
+        fillColor: [240, 240, 240]
+      },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 50, halign: 'center' },
+        2: { cellWidth: 50, halign: 'right', textColor: [0, 150, 136] }
+      },
+      margin: { left: 20, right: 20 }
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+    // Mejor trabajador (si existe)
     if (balance.topWorker) {
-      rows.push(['', '', '']);
-      rows.push(['Mejor Trabajador', balance.topWorker.name, formatCurrency(balance.topWorker.earnings)]);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 150, 136);
+      doc.text('🏆 MEJOR TRABAJADOR DEL PERÍODO', 20, yPosition);
+      yPosition += 8;
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Nombre: ${balance.topWorker.name}`, 25, yPosition);
+      yPosition += 6;
+      doc.text(`Comisiones ganadas: ${formatCurrency(balance.topWorker.earnings)}`, 25, yPosition);
+      yPosition += 12;
     }
 
-    const csv = [
-      `Balance ${getPeriodLabel()}`,
-      `Período: ${start.toLocaleDateString('es-CO')} - ${end.toLocaleDateString('es-CO')}`,
-      '',
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+    // Comparación con período anterior
+    if (balance.comparisonPercentage !== 0) {
+      const isPositive = balance.comparisonPercentage > 0;
+      doc.setFontSize(10);
+      doc.setTextColor(isPositive ? 34 : 220, isPositive ? 197 : 53, isPositive ? 94 : 69);
+      const comparisonText = `${isPositive ? '📈' : '📉'} ${isPositive ? 'Aumento' : 'Disminución'} del ${Math.abs(balance.comparisonPercentage).toFixed(1)}% respecto al período anterior`;
+      doc.text(comparisonText, 20, yPosition);
+      yPosition += 15;
+    }
 
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `balance_${start.toISOString().split('T')[0]}_${end.toISOString().split('T')[0]}.csv`;
-    a.click();
-    toast.success('Balance exportado exitosamente');
+    // Pie de página
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont('helvetica', 'italic');
+    const footerY = pageHeight - 15;
+    doc.text(`Generado el ${new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, pageWidth / 2, footerY, { align: 'center' });
+    doc.text('Sistema POS - Wilson Cars & Wash', pageWidth / 2, footerY + 5, { align: 'center' });
+
+    // Guardar PDF
+    const fileName = `Informe_Balance_${start.toISOString().split('T')[0]}_${end.toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    toast.success('📄 Informe exportado a PDF exitosamente');
   };
 
   const printBalance = () => {
@@ -321,11 +487,22 @@ const BalanceDashboard: React.FC = () => {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={exportToExcel}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-all shadow-lg hover:shadow-2xl hover:scale-105"
+                onClick={() => setShowDateFilter(!showDateFilter)}
+                className={`flex items-center gap-2 px-6 py-3 ${
+                  dateRange.filter !== 'all'
+                    ? 'bg-indigo-600 hover:bg-indigo-700'
+                    : 'bg-purple-600 hover:bg-purple-700'
+                } text-white rounded-xl transition-all shadow-lg hover:shadow-2xl hover:scale-105`}
               >
-                <FileSpreadsheet className="w-5 h-5" />
-                Exportar Excel
+                <Calendar className="w-5 h-5" />
+                {dateRange.filter !== 'all' ? 'Filtro Activo' : 'Filtrar por Fecha'}
+              </button>
+              <button
+                onClick={exportToPDF}
+                className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-lg hover:shadow-2xl hover:scale-105"
+              >
+                <FileText className="w-5 h-5" />
+                Exportar PDF
               </button>
               <button
                 onClick={printBalance}
@@ -560,6 +737,63 @@ const BalanceDashboard: React.FC = () => {
           </>
         )}
         </div>
+
+        {/* Modal de Filtros de Fecha */}
+        <AnimatePresence>
+          {showDateFilter && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowDateFilter(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                    <Calendar className="w-8 h-8" />
+                    Filtrar Balance por Fecha
+                  </h2>
+                  <button
+                    onClick={() => setShowDateFilter(false)}
+                    className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="p-6">
+                  <DateRangePicker
+                    onRangeChange={(range) => {
+                      setDateRange(range);
+                      console.log('📅 [BalanceDashboard] Filtro de fecha seleccionado:', range);
+                      
+                      // Auto-cerrar el modal si no es filtro personalizado o si ya se seleccionaron ambas fechas
+                      if (range.filter !== 'custom' || (range.from && range.to)) {
+                        setTimeout(() => setShowDateFilter(false), 300);
+                        // Los datos se recargarán automáticamente por el useEffect que escucha dateRange
+                      }
+                    }}
+                    lastClosureDate={lastClosureDate}
+                    showQuickFilters={true}
+                  />
+                  
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-blue-800 text-sm">
+                      💡 <strong>Nota:</strong> Los filtros de fecha afectan todos los cálculos del balance. 
+                      Los datos históricos se mantienen guardados y no se eliminan.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </>
   );

@@ -32,6 +32,7 @@ const MonthlySubscriptionManager: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expired'>('active');
   const [currentTime, setCurrentTime] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [monthlyPrices, setMonthlyPrices] = useState({ day: 50000, night: 40000 }); // ✅ NUEVO: Precios configurables
   
   // Formulario de nueva suscripción
   const [newSubscription, setNewSubscription] = useState({
@@ -41,6 +42,7 @@ const MonthlySubscriptionManager: React.FC = () => {
     clientPhone: '',
     clientEmail: '',
     subscriptionType: 'monthly' as 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom',
+    timeType: 'day' as 'day' | 'night', // ✅ NUEVO: Modalidad día/noche
     customDays: 30,
     amount: 0,
     paymentMethod: 'cash' as 'cash' | 'card' | 'transfer',
@@ -49,10 +51,24 @@ const MonthlySubscriptionManager: React.FC = () => {
 
   useEffect(() => {
     loadSubscriptions();
+    loadMonthlyPrices(); // ✅ NUEVO: Cargar precios
     // Verificar suscripciones vencidas cada 5 minutos
     const interval = setInterval(checkExpiredSubscriptions, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // ✅ NUEVO: Cargar precios desde configuración
+  const loadMonthlyPrices = async () => {
+    try {
+      const dualDB = getDualDB();
+      const config = await dualDB.getBusinessConfig();
+      if (config?.monthlyPlanPrices) {
+        setMonthlyPrices(config.monthlyPlanPrices);
+      }
+    } catch (error) {
+      console.error('Error cargando precios:', error);
+    }
+  };
 
   // Actualizar hora cada segundo
   useEffect(() => {
@@ -167,6 +183,7 @@ const MonthlySubscriptionManager: React.FC = () => {
         clientPhone: newSubscription.clientPhone,
         clientEmail: newSubscription.clientEmail || undefined,
         subscriptionType: newSubscription.subscriptionType,
+        timeType: newSubscription.timeType, // ✅ NUEVO: Incluir modalidad
         customDays: newSubscription.subscriptionType === 'custom' ? newSubscription.customDays : undefined,
         startDate,
         endDate,
@@ -183,12 +200,20 @@ const MonthlySubscriptionManager: React.FC = () => {
       
       toast.success('Suscripción creada exitosamente');
       
-      // Imprimir el ticket de suscripción
+      // ✅ NUEVO: Imprimir el nuevo ticket de plan mensual
       try {
-        const { printMonthlySubscriptionInvoice } = await import('./PrintFallback');
-        await printMonthlySubscriptionInvoice(subscriptionData);
+        const { printMonthlyPlanTicket } = await import('./MonthlyPlanTicket');
+        await printMonthlyPlanTicket({
+          id: subscriptionData.id,
+          vehiclePlate: subscriptionData.vehiclePlate,
+          clientName: subscriptionData.clientName,
+          timeType: subscriptionData.timeType,
+          amount: subscriptionData.amount,
+          startDate: subscriptionData.startDate,
+          endDate: subscriptionData.endDate
+        });
       } catch (printError) {
-        console.error('Error imprimiendo factura:', printError);
+        console.error('Error imprimiendo ticket:', printError);
         toast.error('Suscripción creada pero error al imprimir');
       }
       
@@ -278,8 +303,9 @@ const MonthlySubscriptionManager: React.FC = () => {
       clientPhone: '',
       clientEmail: '',
       subscriptionType: 'monthly',
+      timeType: 'day', // ✅ NUEVO: Reset a modalidad día
       customDays: 30,
-      amount: 0,
+      amount: monthlyPrices.day, // ✅ NUEVO: Usar precio diurno por defecto
       paymentMethod: 'cash',
       notes: ''
     });
@@ -530,6 +556,7 @@ const MonthlySubscriptionManager: React.FC = () => {
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {getSubscriptionTypeLabel(subscription.subscriptionType)} • 
+                          {subscription.timeType === 'day' ? ' ☀️ Diurno' : ' 🌙 Nocturno'} • 
                           {' '}Desde: {new Date(subscription.startDate).toLocaleDateString('es-CO')} • 
                           {' '}Hasta: {new Date(subscription.endDate).toLocaleDateString('es-CO')}
                         </p>
@@ -549,16 +576,24 @@ const MonthlySubscriptionManager: React.FC = () => {
                         <button
                           onClick={async () => {
                             try {
-                              const { printMonthlySubscriptionInvoice } = await import('./PrintFallback');
-                              await printMonthlySubscriptionInvoice(subscription);
-                              toast.success('Imprimiendo factura...');
+                              const { printMonthlyPlanTicket } = await import('./MonthlyPlanTicket');
+                              await printMonthlyPlanTicket({
+                                id: subscription.id,
+                                vehiclePlate: subscription.vehiclePlate,
+                                clientName: subscription.clientName,
+                                timeType: subscription.timeType,
+                                amount: subscription.amount,
+                                startDate: subscription.startDate,
+                                endDate: subscription.endDate
+                              });
+                              toast.success('Imprimiendo ticket...');
                             } catch (error) {
                               console.error('Error imprimiendo:', error);
-                              toast.error('Error al imprimir factura');
+                              toast.error('Error al imprimir ticket');
                             }
                           }}
                           className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                          title="Imprimir factura"
+                          title="Imprimir ticket"
                         >
                           <Printer className="w-5 h-5" />
                         </button>
@@ -728,6 +763,62 @@ const MonthlySubscriptionManager: React.FC = () => {
                           />
                         </div>
                       )}
+                    </div>
+
+                    {/* ✅ NUEVO: Selector de Modalidad Día/Noche */}
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Modalidad del Plan
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewSubscription({
+                              ...newSubscription,
+                              timeType: 'day',
+                              amount: monthlyPrices.day
+                            });
+                          }}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            newSubscription.timeType === 'day'
+                              ? 'border-yellow-500 bg-yellow-50 shadow-md'
+                              : 'border-gray-200 hover:border-yellow-300 bg-white'
+                          }`}
+                        >
+                          <div className="text-3xl mb-2">☀️</div>
+                          <div className="font-semibold text-gray-800">Diurno</div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            ${monthlyPrices.day.toLocaleString('es-CO')}
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewSubscription({
+                              ...newSubscription,
+                              timeType: 'night',
+                              amount: monthlyPrices.night
+                            });
+                          }}
+                          className={`p-4 rounded-lg border-2 transition-all ${
+                            newSubscription.timeType === 'night'
+                              ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                              : 'border-gray-200 hover:border-indigo-300 bg-white'
+                          }`}
+                        >
+                          <div className="text-3xl mb-2">🌙</div>
+                          <div className="font-semibold text-gray-800">Nocturno</div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            ${monthlyPrices.night.toLocaleString('es-CO')}
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Monto (ahora en una fila separada) */}
+                    <div className="grid grid-cols-2 gap-4 mt-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Monto *

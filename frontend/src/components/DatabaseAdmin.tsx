@@ -39,10 +39,14 @@ export default function DatabaseAdmin() {
       
       if (isAvailable) {
         try {
-          const tickets = await dualDatabase.getParkingTickets();
-          const workers = await dualDatabase.getAllWorkers();
-          const services = await dualDatabase.getAllCarwashServices();
-          localRecords = tickets.length + workers.length + services.length;
+          const [tickets, workers, services, carwashTransactions, subscriptions] = await Promise.all([
+            dualDatabase.getParkingTickets(),
+            dualDatabase.getAllWorkers(),
+            dualDatabase.getAllCarwashServices(),
+            dualDatabase.getAllCarwashTransactions(),
+            dualDatabase.getAllMonthlySubscriptions()
+          ]);
+          localRecords = tickets.length + workers.length + services.length + carwashTransactions.length + subscriptions.length;
         } catch (error) {
           console.warn('Error counting records:', error);
         }
@@ -65,8 +69,30 @@ export default function DatabaseAdmin() {
 
     setIsLoading(true);
     try {
+      // 1. Limpiar datos locales (IndexedDB)
       await dualDatabase.clearAllData();
-      setMessage({ type: 'success', text: '🗑️ Datos locales eliminados. Recargando página...' });
+      
+      // 2. Limpiar cierres de caja del backend
+      try {
+        const response = await fetch('http://localhost:5000/api/v1/cash-closures/clear-all', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          console.log('✅ Cierres de caja eliminados del backend');
+        } else {
+          console.warn('⚠️ No se pudieron eliminar los cierres de caja del backend');
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Error al conectar con el backend para eliminar cierres:', backendError);
+      }
+      
+      // 3. Limpiar fecha del último cierre en localStorage
+      localStorage.removeItem('lastCashClosure');
+      console.log('✅ Fecha de último cierre eliminada');
+      
+      setMessage({ type: 'success', text: '🗑️ Datos locales, cierres de caja y configuraciones eliminados. Recargando página...' });
       setTimeout(() => {
         window.location.reload();
       }, 2000);
@@ -145,7 +171,7 @@ export default function DatabaseAdmin() {
             <CheckCircleIcon className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-lg font-bold text-gray-900">{dbStatus?.localRecords || 0}</p>
-          <p className="text-xs text-gray-500">tickets, trabajadores y servicios</p>
+          <p className="text-xs text-gray-500">tickets, trabajadores, servicios, lavados y suscripciones</p>
         </div>
       </div>
 
@@ -161,7 +187,15 @@ export default function DatabaseAdmin() {
             <div>
               <h5 className="font-medium text-red-800 mb-1">Limpiar Todos los Datos</h5>
               <p className="text-sm text-red-600 mb-3">
-                Esta acción eliminará TODOS los datos locales permanentemente.
+                Esta acción eliminará TODOS los datos locales y del servidor permanentemente:<br/>
+                ✅ Tickets de parqueadero<br/>
+                ✅ Órdenes de lavado<br/>
+                ✅ Trabajadores<br/>
+                ✅ Servicios<br/>
+                ✅ Suscripciones mensuales<br/>
+                ✅ Historial de vehículos<br/>
+                ✅ Todos los cierres de caja<br/>
+                ✅ Configuración de último cierre
               </p>
             </div>
             <TrashIcon className="w-5 h-5 text-red-500 mt-1" />
