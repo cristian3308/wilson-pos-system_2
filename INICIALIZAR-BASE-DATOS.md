@@ -106,12 +106,31 @@ La tabla se crea con estos campos:
 
 ## ❗ Solución de problemas
 
-### Error: "No se encuentra sqlite3"
+### Error: "Módulo SQL3 no existe" o "No se encuentra sqlite3"
+
+**Solución 1 - Usar script mejorado:**
+```batch
+init-database-v2.bat
+```
+
+**Solución 2 - Instalar sqlite3 manualmente:**
+```batch
+fix-sqlite3.bat
+```
+
+**Solución 3 - Instalación manual:**
 ```powershell
 cd backend
 npm install sqlite3 --save
 cd ..
 ```
+
+**Solución 4 - Si todo falla, instalar herramientas de compilación:**
+1. Instala Node.js (versión LTS): https://nodejs.org/
+2. Instala Python 3: https://www.python.org/
+3. Instala Visual Studio Build Tools
+4. Reinicia el computador
+5. Ejecuta `fix-sqlite3.bat`
 
 ### Error: "Access denied" o "Permission denied"
 - Cierra el servidor si está corriendo: `stop-server.bat`

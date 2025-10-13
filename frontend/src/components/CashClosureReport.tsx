@@ -22,15 +22,36 @@ interface CashClosureReportProps {
   onGenerate?: (doc: jsPDF) => void;
 }
 
+interface SavedClosure {
+  id: number;
+  closure_number: string;
+  start_date: string;
+  end_date: string;
+  parking_revenue: number;
+  carwash_revenue: number;
+  total_revenue: number;
+  total_commissions: number;
+  net_profit: number;
+  created_at: string;
+}
+
 const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, onGenerate }) => {
   const [data, setData] = useState<CashClosureData | null>(propData || null);
   const [isLoading, setIsLoading] = useState(!propData);
   const [isSaving, setIsSaving] = useState(false);
   const [clearDataAfterClosure, setClearDataAfterClosure] = useState(true);
+  
+  // 📊 Nuevos estados para cierres guardados
+  const [availableClosures, setAvailableClosures] = useState<SavedClosure[]>([]);
+  const [selectedClosureId, setSelectedClosureId] = useState<string>('current');
+  const [selectedClosure, setSelectedClosure] = useState<SavedClosure | null>(null);
+  const [startDateTime, setStartDateTime] = useState<Date | null>(null);
+  const [endDateTime, setEndDateTime] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!propData) {
       loadTodayData();
+      loadAvailableClosures(); // ✅ Cargar lista de cierres guardados
     }
   }, [propData]);
 
@@ -148,6 +169,88 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
     }
   };
 
+  // 📋 Cargar lista de cierres guardados
+  const loadAvailableClosures = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/v1/cash-closures');
+      if (response.ok) {
+        const result = await response.json();
+        const closures = result.data || [];
+        setAvailableClosures(closures);
+        console.log('📋 Cierres disponibles:', closures.length);
+      }
+    } catch (error) {
+      console.error('Error loading closures:', error);
+    }
+  };
+
+  // 🔍 Cargar un cierre específico por ID
+  const loadClosureById = async (closureId: string) => {
+    if (closureId === 'current') {
+      // Cargar datos actuales (en curso)
+      setSelectedClosureId('current');
+      setSelectedClosure(null);
+      loadTodayData();
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(`http://localhost:5000/api/v1/cash-closures/${closureId}`);
+      if (response.ok) {
+        const result = await response.json();
+        const closure = result.data;
+        setSelectedClosure(closure);
+        setSelectedClosureId(closureId);
+        setStartDateTime(new Date(closure.start_date));
+        setEndDateTime(new Date(closure.end_date));
+        
+        toast.success(`Cierre #${closure.closure_number} cargado`);
+        console.log('📊 Cierre cargado:', closure);
+      }
+    } catch (error) {
+      console.error('Error loading closure:', error);
+      toast.error('Error al cargar el cierre');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🕐 Formatear fecha y hora
+  const formatDateTime = (date: Date | string | null) => {
+    if (!date) return '-';
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString('es-CO', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit' 
+    });
+  };
+
+  const formatTime = (date: Date | string | null) => {
+    if (!date) return '-';
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleTimeString('es-CO', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
+  // ⏱️ Calcular duración entre dos fechas
+  const calculateDuration = (start: Date | string | null, end: Date | string | null) => {
+    if (!start || !end) return '-';
+    const startDate = typeof start === 'string' ? new Date(start) : start;
+    const endDate = typeof end === 'string' ? new Date(end) : end;
+    
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${diffHours}h ${diffMinutes}m`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -183,13 +286,6 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
       day: '2-digit',
       month: 'long',
       year: 'numeric'
-    });
-  };
-
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('es-CO', {
-      hour: '2-digit',
-      minute: '2-digit'
     });
   };
 
@@ -746,25 +842,37 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
       const carwashArray = Object.values(carwashSummaryData.summary);
       const commissionsArray = Object.values(commissionsData);
 
-      // Obtener el último cierre para usar su endDate como nuestro startDate
-      let startDate = new Date().toISOString();
+      // ✅ CONTINUIDAD AUTOMÁTICA: Obtener el último cierre y empezar 1 minuto después
+      let startDate = new Date();
       try {
         const lastClosureResponse = await fetch('http://localhost:5000/api/v1/cash-closures/last');
         if (lastClosureResponse.ok) {
           const lastClosureData = await lastClosureResponse.json();
           if (lastClosureData.data) {
-            startDate = lastClosureData.data.end_date;
+            // ✅ El nuevo cierre empieza EXACTAMENTE 1 minuto después del anterior
+            const lastEndDate = new Date(lastClosureData.data.end_date);
+            startDate = new Date(lastEndDate.getTime() + 60000); // +1 minuto (60000ms)
+            
+            console.log('✅ CONTINUIDAD AUTOMÁTICA:');
+            console.log(`   📅 Último cierre terminó: ${lastEndDate.toLocaleString('es-CO')}`);
+            console.log(`   📅 Nuevo cierre empieza:  ${startDate.toLocaleString('es-CO')}`);
+            console.log(`   ⏱️  Diferencia: 1 minuto exacto`);
           }
         }
       } catch (err) {
-        console.warn('No se pudo obtener el último cierre, usando fecha actual');
+        console.warn('⚠️  No se pudo obtener el último cierre, usando fecha actual como inicio');
       }
       
-      const closureDate = new Date();
+      const closureDate = new Date(); // Hora actual = fin del cierre
       const endDate = closureDate.toISOString();
+      const startDateISO = startDate.toISOString();
+      
+      // Guardar las fechas en el estado para mostrarlas
+      setStartDateTime(startDate);
+      setEndDateTime(closureDate);
 
       const closureData = {
-        startDate,
+        startDate: startDateISO,
         endDate,
         parkingRevenue: totalParkingRevenue,
         carwashRevenue: totalCarwashRevenue,
@@ -844,9 +952,79 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
 
   return (
     <div className="p-6 space-y-6">
+      {/* 📊 Selector de Cierres */}
+      <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          📋 Seleccionar Cierre
+        </label>
+        <select
+          value={selectedClosureId}
+          onChange={(e) => loadClosureById(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+        >
+          <option value="current">📊 Cierre Actual (En curso)</option>
+          {availableClosures.map((closure) => (
+            <option key={closure.id} value={closure.id}>
+              🧾 Cierre #{closure.closure_number} - {formatDateTime(closure.end_date)} a las {formatTime(closure.end_date)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 📅 Período del Cierre - Mostrar horas exactas */}
+      {(startDateTime || endDateTime || selectedClosure) && (
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-2xl">📅</span>
+            <h3 className="text-lg font-semibold text-gray-800">Período del Cierre</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Fecha y hora de inicio */}
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <p className="text-sm text-gray-600 mb-2 font-medium">🟢 Inicio del Período</p>
+              <div className="space-y-1">
+                <p className="text-lg font-bold text-gray-800">
+                  {formatDateTime(selectedClosure ? selectedClosure.start_date : startDateTime)}
+                </p>
+                <p className="text-3xl font-bold text-blue-600">
+                  {formatTime(selectedClosure ? selectedClosure.start_date : startDateTime)}
+                </p>
+              </div>
+            </div>
+
+            {/* Fecha y hora de fin */}
+            <div className="bg-white rounded-lg p-4 border border-blue-100">
+              <p className="text-sm text-gray-600 mb-2 font-medium">🔴 Fin del Período</p>
+              <div className="space-y-1">
+                <p className="text-lg font-bold text-gray-800">
+                  {formatDateTime(selectedClosure ? selectedClosure.end_date : endDateTime)}
+                </p>
+                <p className="text-3xl font-bold text-red-600">
+                  {formatTime(selectedClosure ? selectedClosure.end_date : endDateTime)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Duración total */}
+          <div className="mt-4 p-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-200">
+            <p className="text-center text-gray-700">
+              <span className="font-semibold">⏱️ Duración total:</span>{' '}
+              <span className="text-lg font-bold text-green-700">
+                {calculateDuration(
+                  selectedClosure ? selectedClosure.start_date : startDateTime,
+                  selectedClosure ? selectedClosure.end_date : endDateTime
+                )}
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Resumen del cierre */}
       <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Resumen del Cierre</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">💰 Resumen Financiero</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg p-4 shadow-sm">
             <p className="text-sm text-gray-600">Parqueadero</p>
@@ -873,57 +1051,83 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
         </div>
       </div>
 
-      {/* Opción para limpiar datos */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={clearDataAfterClosure}
-            onChange={(e) => setClearDataAfterClosure(e.target.checked)}
-            className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
-          />
-          <div>
-            <p className="font-medium text-gray-800">Limpiar datos después del cierre</p>
-            <p className="text-sm text-gray-600">
-              Los tickets y transacciones se archivarán y el sistema quedará listo para el próximo período
-            </p>
-          </div>
-        </label>
-      </div>
-
-      {/* Botón de generar */}
-      <button
-        onClick={handleGeneratePDF}
-        disabled={isSaving}
-        className="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl 
-                   hover:from-green-700 hover:to-green-800 transition-all duration-200 
-                   shadow-lg hover:shadow-xl transform hover:scale-[1.02] 
-                   font-semibold text-lg flex items-center justify-center gap-3
-                   disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-      >
-        {isSaving ? (
-          <>
-            <Loader2 className="w-6 h-6 animate-spin" />
-            Guardando y generando PDF...
-          </>
-        ) : (
-          <>
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-6 w-6" 
-              viewBox="0 0 20 20" 
-              fill="currentColor"
-            >
-              <path 
-                fillRule="evenodd" 
-                d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" 
-                clipRule="evenodd" 
+      {/* ✅ Solo mostrar opciones de cierre si es el cierre ACTUAL (no un cierre guardado) */}
+      {selectedClosureId === 'current' && (
+        <>
+          {/* Opción para limpiar datos */}
+          <div className="bg-white rounded-xl p-6 border border-gray-200">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={clearDataAfterClosure}
+                onChange={(e) => setClearDataAfterClosure(e.target.checked)}
+                className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
               />
-            </svg>
-            Generar Cierre de Caja (PDF)
-          </>
-        )}
-      </button>
+              <div>
+                <p className="font-medium text-gray-800">Limpiar datos después del cierre</p>
+                <p className="text-sm text-gray-600">
+                  Los tickets y transacciones se archivarán y el sistema quedará listo para el próximo período
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Botón de generar */}
+          <button
+            onClick={handleGeneratePDF}
+            disabled={isSaving}
+            className="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl 
+                       hover:from-green-700 hover:to-green-800 transition-all duration-200 
+                       shadow-lg hover:shadow-xl transform hover:scale-[1.02] 
+                       font-semibold text-lg flex items-center justify-center gap-3
+                       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="w-6 h-6 animate-spin" />
+                Guardando y generando PDF...
+              </>
+            ) : (
+              <>
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-6 w-6" 
+                  viewBox="0 0 20 20" 
+                  fill="currentColor"
+                >
+                  <path 
+                    fillRule="evenodd" 
+                    d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" 
+                    clipRule="evenodd" 
+                  />
+                </svg>
+                💾 Guardar y Generar Cierre de Caja (PDF)
+              </>
+            )}
+          </button>
+        </>
+      )}
+
+      {/* 📄 Mostrar mensaje si es un cierre guardado */}
+      {selectedClosureId !== 'current' && selectedClosure && (
+        <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">ℹ️</span>
+            <div>
+              <p className="font-semibold text-gray-800 text-lg">Visualizando Cierre Guardado</p>
+              <p className="text-gray-600 mt-1">
+                Este es un cierre de caja que ya fue guardado el{' '}
+                <span className="font-medium">{formatDateTime(selectedClosure.created_at)}</span>
+                . Solo puedes visualizar los datos.
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                💰 Total registrado: {formatCurrency(selectedClosure.total_revenue)} | 
+                💵 Neto: {formatCurrency(selectedClosure.net_profit)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -443,10 +443,11 @@ export const useDashboardDataReal = (dateFilter?: DateFilter) => {
 
   useEffect(() => {
     loadDashboardData();
-    // Actualizar datos cada 30 segundos
-    const interval = setInterval(loadDashboardData, 30000);
+    // ⏱️ Actualizar datos cada 5 MINUTOS (300000ms) en vez de 30 segundos
+    // Esto reduce la carga y evita actualizaciones constantes
+    const interval = setInterval(loadDashboardData, 300000);
     return () => clearInterval(interval);
-  }, [dateFilter]); // ✅ Recargar cuando cambie el filtro de fecha
+  }, [dateFilter?.filter, dateFilter?.from, dateFilter?.to]); // ✅ Solo recargar cuando cambien los valores del filtro, no el objeto completo
 
   return {
     data,

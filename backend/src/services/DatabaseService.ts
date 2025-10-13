@@ -20,11 +20,17 @@ class DatabaseService {
 
     const dbPath = path.join(dbDir, 'pos_system.db');
     
+    // Log de la ruta absoluta de la base de datos
+    const absolutePath = path.resolve(dbPath);
+    logger.info(`📁 Ruta de la base de datos: ${absolutePath}`);
+    console.log(`\n📁 BASE DE DATOS DE CIERRES DE CAJA:\n   ${absolutePath}\n`);
+    
     this.db = new Database(dbPath, (err: any) => {
       if (err) {
         logger.error('Error opening database:', err);
       } else {
         logger.info('Connected to SQLite database');
+        console.log('✅ Conectado a la base de datos SQLite\n');
         this.createTables();
       }
     });

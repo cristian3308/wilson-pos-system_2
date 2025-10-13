@@ -47,6 +47,16 @@ if errorlevel 1 (
 )
 
 echo.
+echo Instalando sqlite3 especificamente...
+call npm install sqlite3 --save
+if errorlevel 1 (
+    echo [ERROR] No se pudo instalar sqlite3
+    cd ..
+    pause
+    exit /b 1
+)
+
+echo.
 echo Creando base de datos...
 node -e "const sqlite3 = require('sqlite3').verbose(); const db = new sqlite3.Database('./dist/database/pos_system.db', (err) => { if (err) { console.error('[ERROR]', err.message); process.exit(1); } console.log('[OK] Base de datos creada'); }); const sql = 'CREATE TABLE IF NOT EXISTS cash_closures (id INTEGER PRIMARY KEY AUTOINCREMENT, closure_number TEXT NOT NULL UNIQUE, start_date DATETIME NOT NULL, end_date DATETIME NOT NULL, parking_revenue DECIMAL(10,2) DEFAULT 0, carwash_revenue DECIMAL(10,2) DEFAULT 0, total_revenue DECIMAL(10,2) DEFAULT 0, total_commissions DECIMAL(10,2) DEFAULT 0, net_profit DECIMAL(10,2) DEFAULT 0, parking_data TEXT DEFAULT \"[]\", carwash_data TEXT DEFAULT \"[]\", worker_commissions TEXT DEFAULT \"[]\", created_by TEXT DEFAULT \"sistema\", notes TEXT DEFAULT \"\", pdf_generated BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP); CREATE INDEX IF NOT EXISTS idx_cash_closures_dates ON cash_closures(start_date, end_date); CREATE INDEX IF NOT EXISTS idx_cash_closures_created_at ON cash_closures(created_at);'; db.exec(sql, (err) => { if (err) { console.error('[ERROR]', err.message); process.exit(1); } console.log('[OK] Tabla cash_closures creada'); console.log('[OK] Indices creados'); db.close(); });"
 

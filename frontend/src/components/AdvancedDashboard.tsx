@@ -311,6 +311,15 @@ export default function AdvancedDashboard() {
               Reportes
             </button>
 
+            {/* Botón Ver Cierres Guardados */}
+            <button
+              onClick={() => setShowCashClosureModal(true)}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Ver Cierres Guardados
+            </button>
+
             {/* Botón de Filtrar por Fecha */}
             <button
               onClick={() => setShowDateFilter(!showDateFilter)}
@@ -458,58 +467,60 @@ export default function AdvancedDashboard() {
 
       {/* Charts y visualizaciones */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Distribución de Vehículos */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20"
-        >
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-            <BarChart3 className="w-6 h-6" />
-            Distribución de Vehículos
-          </h3>
-          
-          <div className="space-y-4">
-            {[
-              { type: 'Carros', count: vehiculosPorTipo.carro, icon: Car, color: 'bg-blue-500' },
-              { type: 'Motos', count: vehiculosPorTipo.moto, icon: Truck, color: 'bg-green-500' },
-              { type: 'Bicicletas', count: vehiculosPorTipo.bicicleta, icon: Bike, color: 'bg-yellow-500' }
-            ].map((item, index) => {
-              const percentage = calculatePercentage(item.count, totalVehiculos);
-              return (
-                <motion.div
-                  key={item.type}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + index * 0.1 }}
-                  className="flex items-center gap-4"
-                >
-                  <div className="flex items-center gap-3 min-w-[120px]">
-                    <item.icon className="w-5 h-5 text-white" />
-                    <span className="text-white font-medium">{item.type}</span>
-                  </div>
-                  
-                  <div className="flex-1">
-                    <div className="bg-white/20 rounded-full h-3 overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${percentage}%` }}
-                        transition={{ duration: 1, delay: 0.5 + index * 0.2 }}
-                        className={`h-full ${item.color} rounded-full`}
-                      />
+        {/* Distribución de Vehículos - Solo mostrar si hay datos */}
+        {totalVehiculos > 0 && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20"
+          >
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+              <BarChart3 className="w-6 h-6" />
+              Distribución de Vehículos
+            </h3>
+            
+            <div className="space-y-4">
+              {[
+                { type: 'Carros', count: vehiculosPorTipo.carro, icon: Car, color: 'bg-blue-500' },
+                { type: 'Motos', count: vehiculosPorTipo.moto, icon: Truck, color: 'bg-green-500' },
+                { type: 'Bicicletas', count: vehiculosPorTipo.bicicleta, icon: Bike, color: 'bg-yellow-500' }
+              ].map((item, index) => {
+                const percentage = calculatePercentage(item.count, totalVehiculos);
+                return (
+                  <motion.div
+                    key={item.type}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + index * 0.1 }}
+                    className="flex items-center gap-4"
+                  >
+                    <div className="flex items-center gap-3 min-w-[120px]">
+                      <item.icon className="w-5 h-5 text-white" />
+                      <span className="text-white font-medium">{item.type}</span>
                     </div>
-                  </div>
-                  
-                  <div className="text-right min-w-[80px]">
-                    <span className="text-white font-bold text-lg">{item.count}</span>
-                    <div className="text-blue-200 text-sm">{percentage}%</div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
+                    
+                    <div className="flex-1">
+                      <div className="bg-white/20 rounded-full h-3 overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${percentage}%` }}
+                          transition={{ duration: 1, delay: 0.5 + index * 0.2 }}
+                          className={`h-full ${item.color} rounded-full`}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="text-right min-w-[80px]">
+                      <span className="text-white font-bold text-lg">{item.count}</span>
+                      <div className="text-blue-200 text-sm">{percentage}%</div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
         {/* Servicios de Lavadero */}
         <motion.div

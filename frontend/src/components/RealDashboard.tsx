@@ -311,31 +311,33 @@ export default function RealDashboard() {
         </div>
       </motion.div>
 
-      {/* Actividad Reciente */}
-      <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-xl p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Actividad Reciente</h3>
-        <div className="space-y-3 max-h-64 overflow-y-auto">
-          {data.recentActivities.map((activity) => (
-            <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  activity.status === 'completed' ? 'bg-green-500' : 
-                  activity.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-                }`}></div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                  <p className="text-xs text-gray-600">{activity.time}</p>
+      {/* Actividad Reciente - Solo mostrar si hay datos */}
+      {data.recentActivities && data.recentActivities.length > 0 && (
+        <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-xl p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Actividad Reciente</h3>
+          <div className="space-y-3 max-h-64 overflow-y-auto">
+            {data.recentActivities.map((activity) => (
+              <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${
+                    activity.status === 'completed' ? 'bg-green-500' : 
+                    activity.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}></div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                    <p className="text-xs text-gray-600">{activity.time}</p>
+                  </div>
                 </div>
+                {activity.amount && (
+                  <span className="text-sm font-semibold text-green-600">
+                    +${activity.amount.toLocaleString()}
+                  </span>
+                )}
               </div>
-              {activity.amount && (
-                <span className="text-sm font-semibold text-green-600">
-                  +${activity.amount.toLocaleString()}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 
