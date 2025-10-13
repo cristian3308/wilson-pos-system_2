@@ -245,7 +245,7 @@ export const printSimpleTicket = async (data: PrintData) => {
         
         .barcode-visual {
             font-family: 'Libre Barcode EAN13 Text', monospace;
-            font-size: 70px;
+            font-size: 170px;
             margin: 8px auto;
             line-height: 0.9;
         }
@@ -553,7 +553,7 @@ export const printSimpleCarwashTicket = async (transaction: any) => {
         
         .barcode-visual {
             font-family: 'Libre Barcode EAN13 Text', monospace;
-            font-size: 70px;
+            font-size: 170px;
             margin: 8px auto;
             line-height: 0.9;
         }

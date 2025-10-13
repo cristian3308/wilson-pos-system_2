@@ -62,11 +62,11 @@ const ThermalCarwashTicket: React.FC<ThermalCarwashTicketProps> = ({ record, bus
       try {
         JsBarcode(barcodeRef.current, generateTicketBarcode(), {
           format: 'CODE128',
-          width: 2,
-          height: 50,
+          width: 4.5,
+          height: 150,
           displayValue: true,
-          fontSize: 14,
-          margin: 10,
+          fontSize: 26,
+          margin: 5,
         });
       } catch (error) {
         console.error('Error generating barcode:', error);
@@ -269,7 +269,7 @@ const ThermalCarwashTicket: React.FC<ThermalCarwashTicketProps> = ({ record, bus
       {/* Código de Barras */}
       <div className="receipt-barcode" style={{ marginTop: '12mm', marginBottom: '12mm', textAlign: 'center' }}>
         <div style={{ padding: '8mm 0', background: 'white' }}>
-          <svg ref={barcodeRef}></svg>
+          <svg ref={barcodeRef} style={{ width: '100%', height: 'auto', maxWidth: '100%' }}></svg>
         </div>
         <div style={{ 
           fontSize: '24pt',

@@ -59,7 +59,7 @@ export const printMonthlyPlanTicket = async (data: MonthlyPlanTicketData) => {
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>PLAN MENSUAL</title>
+    <title>Ticket Plan Mensual</title>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+EAN13+Text&display=swap" rel="stylesheet">
     <style>
         @media print {
@@ -156,19 +156,19 @@ export const printMonthlyPlanTicket = async (data: MonthlyPlanTicketData) => {
         }
         
         .info-label {
-            font-size: 10px;
-            color: #666;
+            font-size: 13px;
+            color: #000;
             font-weight: bold;
         }
         
         .info-value {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
             margin: 3px 0 10px 0;
         }
         
         .plate-value {
-            font-size: 24px;
+            font-size: 26px;
             font-weight: bold;
             letter-spacing: 3px;
             margin: 10px 0;
@@ -194,7 +194,8 @@ export const printMonthlyPlanTicket = async (data: MonthlyPlanTicketData) => {
         
         .date-section {
             margin: 10px 0;
-            font-size: 11px;
+            font-size: 13px;
+            font-weight: bold;
         }
         
         .barcode-section {
@@ -203,7 +204,7 @@ export const printMonthlyPlanTicket = async (data: MonthlyPlanTicketData) => {
         
         .barcode-visual {
             font-family: 'Libre Barcode EAN13 Text', monospace;
-            font-size: 70px;
+            font-size: 170px;
             margin: 8px auto;
             line-height: 0.9;
         }
@@ -229,9 +230,6 @@ export const printMonthlyPlanTicket = async (data: MonthlyPlanTicketData) => {
         <div class="company-address">${ticketData.address || 'Dirección no configurada'}</div>
         
         <div class="separator"></div>
-        
-        <!-- Título -->
-        <div class="ticket-title">PLAN MENSUAL</div>
         
         <!-- Badge de modalidad -->
         <div class="time-badge ${data.timeType}">
