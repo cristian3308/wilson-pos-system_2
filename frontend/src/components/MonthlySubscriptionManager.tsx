@@ -20,6 +20,7 @@ import {
   Filter
 } from 'lucide-react';
 import { getDualDB, MonthlySubscription } from '@/lib/dualDatabase';
+import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
 import CompanyLogo from '@/components/ui/CompanyLogo';
 import { useHydration } from '@/hooks/useHydration';
 import toast from 'react-hot-toast';
@@ -33,11 +34,12 @@ const MonthlySubscriptionManager: React.FC = () => {
   const [currentTime, setCurrentTime] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [monthlyPrices, setMonthlyPrices] = useState({ day: 50000, night: 40000 }); // ✅ NUEVO: Precios configurables
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeConfig[]>([]);
   
   // Formulario de nueva suscripción
   const [newSubscription, setNewSubscription] = useState({
     vehiclePlate: '',
-    vehicleType: 'car',
+    vehicleType: '',
     clientName: '',
     clientPhone: '',
     clientEmail: '',
@@ -52,6 +54,7 @@ const MonthlySubscriptionManager: React.FC = () => {
   useEffect(() => {
     loadSubscriptions();
     loadMonthlyPrices(); // ✅ NUEVO: Cargar precios
+    loadVehicleTypes(); // ✅ NUEVO: Cargar tipos de vehículos
     // Verificar suscripciones vencidas cada 5 minutos
     const interval = setInterval(checkExpiredSubscriptions, 5 * 60 * 1000);
     return () => clearInterval(interval);
@@ -67,6 +70,36 @@ const MonthlySubscriptionManager: React.FC = () => {
       }
     } catch (error) {
       console.error('Error cargando precios:', error);
+    }
+  };
+
+  // ✅ NUEVO: Cargar tipos de vehículos (igual que CarwashManagement)
+  const loadVehicleTypes = async () => {
+    try {
+      const localDB = getLocalDB();
+      const customTypes = await localDB.getVehicleTypes();
+      
+      // Tipos predeterminados
+      const defaultTypes: VehicleTypeConfig[] = [
+        { id: 'car', name: 'Automóvil', iconName: 'Car', tarifa: 0, isCustom: false, createdAt: new Date() },
+        { id: 'motorcycle', name: 'Motocicleta', iconName: 'Bike', tarifa: 0, isCustom: false, createdAt: new Date() },
+        { id: 'truck', name: 'Camión', iconName: 'Truck', tarifa: 0, isCustom: false, createdAt: new Date() },
+      ];
+      
+      // Combinar tipos predeterminados con personalizados
+      const allTypes = [...defaultTypes, ...customTypes];
+      setVehicleTypes(allTypes);
+      
+      // Establecer el primer tipo como predeterminado si existe
+      if (allTypes.length > 0 && !newSubscription.vehicleType) {
+        setNewSubscription(prev => ({ ...prev, vehicleType: allTypes[0].id }));
+      }
+      
+      console.log('✅ Tipos de vehículos cargados en MonthlySubscriptionManager:', allTypes.length);
+      console.log('📋 Tipos personalizados:', customTypes.length);
+    } catch (error) {
+      console.error('❌ Error cargando tipos de vehículos:', error);
+      toast.error('Error cargando tipos de vehículos');
     }
   };
 
@@ -298,7 +331,7 @@ const MonthlySubscriptionManager: React.FC = () => {
   const resetForm = () => {
     setNewSubscription({
       vehiclePlate: '',
-      vehicleType: 'car',
+      vehicleType: vehicleTypes.length > 0 ? vehicleTypes[0].id : '',
       clientName: '',
       clientPhone: '',
       clientEmail: '',
@@ -673,10 +706,14 @@ const MonthlySubscriptionManager: React.FC = () => {
                           value={newSubscription.vehicleType}
                           onChange={(e) => setNewSubscription({ ...newSubscription, vehicleType: e.target.value })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          required
                         >
-                          <option value="car">Carro</option>
-                          <option value="motorcycle">Moto</option>
-                          <option value="truck">Camioneta</option>
+                          <option value="">Seleccione un tipo</option>
+                          {vehicleTypes.map((type) => (
+                            <option key={type.id} value={type.id}>
+                              {type.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>

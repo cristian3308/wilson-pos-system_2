@@ -18,6 +18,9 @@ router.get('/cash-closures/stats', CashClosureController.getClosureStats);
 // Obtener un cierre específico por ID
 router.get('/cash-closures/:id', CashClosureController.getClosureById);
 
+// Limpiar datos operativos post-cierre
+router.post('/cash-closures/clear-operational-data', CashClosureController.clearOperationalData);
+
 // Eliminar todos los cierres de caja (admin)
 router.delete('/cash-closures/clear-all', CashClosureController.clearAllClosures);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Droplets, 
@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useSystem } from '@/contexts/SystemContext';
 import { CarwashOrder, CarwashService, formatCurrency, formatTime } from '@/types';
+import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
 import CompanyLogo from '@/components/ui/CompanyLogo';
 
 type CarwashMode = 'crear' | 'gestionar' | 'historial';
@@ -108,6 +109,7 @@ export default function LavaderoManagement() {
   // Form state for creating orders
   const [orderForm, setOrderForm] = useState({
     placaVehiculo: '',
+    tipoVehiculo: '',
     serviciosSeleccionados: [] as string[],
     cliente: {
       nombre: '',
@@ -117,6 +119,41 @@ export default function LavaderoManagement() {
     observaciones: '',
     prioridad: 'normal' as 'normal' | 'urgente'
   });
+
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeConfig[]>([]);
+
+  // Cargar tipos de vehículos (igual que CarwashManagement)
+  const loadVehicleTypes = async () => {
+    try {
+      const localDB = getLocalDB();
+      const customTypes = await localDB.getVehicleTypes();
+      
+      // Tipos predeterminados
+      const defaultTypes: VehicleTypeConfig[] = [
+        { id: 'car', name: 'Automóvil', iconName: 'Car', tarifa: 0, isCustom: false, createdAt: new Date() },
+        { id: 'motorcycle', name: 'Motocicleta', iconName: 'Bike', tarifa: 0, isCustom: false, createdAt: new Date() },
+        { id: 'truck', name: 'Camión', iconName: 'Truck', tarifa: 0, isCustom: false, createdAt: new Date() },
+      ];
+      
+      // Combinar tipos predeterminados con personalizados
+      const allTypes = [...defaultTypes, ...customTypes];
+      setVehicleTypes(allTypes);
+      
+      // Establecer el primer tipo como predeterminado si existe
+      if (allTypes.length > 0 && !orderForm.tipoVehiculo) {
+        setOrderForm(prev => ({ ...prev, tipoVehiculo: allTypes[0].id }));
+      }
+      
+      console.log('✅ Tipos de vehículos cargados en LavaderoManagement:', allTypes.length);
+      console.log('📋 Tipos personalizados:', customTypes.length);
+    } catch (error) {
+      console.error('❌ Error cargando tipos de vehículos:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadVehicleTypes();
+  }, []);
 
   const isLoading = loadingStates.carwash === 'loading';
 
@@ -157,9 +194,10 @@ export default function LavaderoManagement() {
     }
 
     try {
-      const newOrder: Partial<CarwashOrder> = {
-        placaVehiculo: orderForm.placaVehiculo,
-        servicios: selectedServices,
+      const newOrder: any = {
+        placa: orderForm.placaVehiculo,
+        tipoVehiculo: orderForm.tipoVehiculo,
+        servicios: selectedServices.map(s => s.id || s),
         estado: 'pendiente',
         cliente: orderForm.cliente.nombre ? orderForm.cliente : undefined,
         observaciones: orderForm.observaciones,
@@ -167,8 +205,22 @@ export default function LavaderoManagement() {
         tiempoEstimado: totalDuration,
         prioridad: orderForm.prioridad
       };
+      // Call backend API to create order
+      try {
+        const resp = await fetch('http://localhost:5000/api/v1/lavadero/orden', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newOrder)
+        });
 
-      // API call would go here
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.message || 'Error creando orden');
+        }
+      } catch (apiError) {
+        actions.addNotification({ type: 'error', title: 'Error', message: (apiError as Error).message });
+        return;
+      }
       actions.addNotification({
         type: 'success',
         title: 'Orden Creada',
@@ -178,6 +230,7 @@ export default function LavaderoManagement() {
       // Reset form
       setOrderForm({
         placaVehiculo: '',
+        tipoVehiculo: '',
         serviciosSeleccionados: [],
         cliente: { nombre: '', telefono: '', email: '' },
         observaciones: '',
@@ -397,6 +450,21 @@ export default function LavaderoManagement() {
                         className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-3 text-white placeholder-purple-300 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20"
                         required
                       />
+                    </div>
+                    {/* Vehicle Type */}
+                    <div>
+                      <label className="block text-purple-200 font-medium mb-2">Tipo de Vehículo</label>
+                      <select
+                        value={orderForm.tipoVehiculo}
+                        onChange={(e) => setOrderForm({ ...orderForm, tipoVehiculo: e.target.value })}
+                        className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-4 py-3 text-white"
+                        required
+                      >
+                        <option value="">Seleccione un tipo</option>
+                        {vehicleTypes.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Client Info */}

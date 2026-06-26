@@ -2,8 +2,7 @@
 node_modules/
 
 # Build files (temporal de Next.js)
-frontend/.next/cache/
-frontend/.next/trace
+frontend/.next/
 frontend/out/
 frontend/build/
 

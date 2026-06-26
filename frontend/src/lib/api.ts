@@ -140,4 +140,29 @@ export const carwashApi = {
     apiClient.get(`/lavadero/historial?days=${days}`),
 };
 
+export const cashClosureApi = {
+  getAll: (params?: { startDate?: string; endDate?: string; year?: number; month?: number; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.set('startDate', params.startDate);
+    if (params?.endDate) searchParams.set('endDate', params.endDate);
+    if (params?.year) searchParams.set('year', String(params.year));
+    if (params?.month) searchParams.set('month', String(params.month));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const qs = searchParams.toString();
+    return apiClient.get(`/cash-closures${qs ? `?${qs}` : ''}`);
+  },
+  getById: (id: string | number) => apiClient.get(`/cash-closures/${id}`),
+  getLast: () => apiClient.get('/cash-closures/last'),
+  getStats: (params?: { year?: number; month?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.year) searchParams.set('year', String(params.year));
+    if (params?.month) searchParams.set('month', String(params.month));
+    const qs = searchParams.toString();
+    return apiClient.get(`/cash-closures/stats${qs ? `?${qs}` : ''}`);
+  },
+  create: (data: any) => apiClient.post('/cash-closures', data),
+  clearAll: () => apiClient.delete('/cash-closures/clear-all'),
+  clearOperationalData: () => apiClient.post('/cash-closures/clear-operational-data'),
+};
+
 export { ApiError };

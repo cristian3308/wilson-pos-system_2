@@ -5,7 +5,6 @@ const router = Router();
 const configuracionController = new ConfiguracionController();
 
 // Rutas de configuración
-router.post('/sistema/inicializar', configuracionController.inicializarDatos.bind(configuracionController));
 router.get('/sistema/tipos-vehiculos', configuracionController.obtenerTiposVehiculos.bind(configuracionController));
 router.get('/sistema/configuracion', configuracionController.obtenerConfiguracion.bind(configuracionController));
 router.put('/sistema/configuracion', configuracionController.actualizarConfiguracion.bind(configuracionController));

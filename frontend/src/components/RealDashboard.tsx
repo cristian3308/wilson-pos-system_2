@@ -15,9 +15,6 @@ import {
 import { X } from 'lucide-react';
 
 import { useDashboardDataReal } from '@/hooks/useDashboardDataReal';
-import ParqueaderoManagement from '@/components/ImprovedParqueaderoManagement';
-import CarwashManagement from '@/components/CarwashManagement';
-import DatabaseAdmin from '@/components/DatabaseAdmin';
 import ConnectionIndicator from '@/components/ConnectionIndicator';
 import SyncButton from '@/components/SyncButton';
 import CashClosureReport from '@/components/CashClosureReport';
@@ -50,7 +47,6 @@ const itemVariants = {
 };
 
 export default function RealDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'parking' | 'carwash' | 'admin'>('overview');
   const [showCashClosureModal, setShowCashClosureModal] = useState(false);
   const [showReportsModal, setShowReportsModal] = useState(false);
   const [showDateFilter, setShowDateFilter] = useState(false);
@@ -264,29 +260,7 @@ export default function RealDashboard() {
       {/* Acciones Rápidas */}
       <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-xl p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-6">Acciones Rápidas</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button
-            onClick={() => setActiveTab('parking')}
-            className="flex flex-col items-center p-6 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors group"
-          >
-            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <TruckIcon className="w-6 h-6 text-white" />
-            </div>
-            <h4 className="font-medium text-gray-900 mb-1">Nuevo Ticket</h4>
-            <p className="text-sm text-gray-600 text-center">Registrar ingreso de vehículo</p>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('carwash')}
-            className="flex flex-col items-center p-6 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors group"
-          >
-            <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <SparklesIcon className="w-6 h-6 text-white" />
-            </div>
-            <h4 className="font-medium text-gray-900 mb-1">Servicio de Lavado</h4>
-            <p className="text-sm text-gray-600 text-center">Crear orden de lavado</p>
-          </button>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button 
             onClick={() => setShowCashClosureModal(true)}
             className="flex flex-col items-center p-6 bg-green-50 hover:bg-green-100 rounded-xl transition-colors group"
@@ -306,7 +280,7 @@ export default function RealDashboard() {
               <ChartBarIcon className="w-6 h-6 text-white" />
             </div>
             <h4 className="font-medium text-gray-900 mb-1">Reportes</h4>
-            <p className="text-sm text-gray-600 text-center">Ver informes y estadísticas</p>
+            <p className="text-sm text-gray-600 text-center">Ver análisis de datos</p>
           </button>
         </div>
       </motion.div>
@@ -349,48 +323,6 @@ export default function RealDashboard() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-gray-900">Dashboard POS</h1>
-              <div className="ml-4 flex items-center space-x-4">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    activeTab === 'overview'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Dashboard
-                </button>
-                <button
-                  onClick={() => setActiveTab('parking')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    activeTab === 'parking'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Parqueadero
-                </button>
-                <button
-                  onClick={() => setActiveTab('carwash')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    activeTab === 'carwash'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Lavadero
-                </button>
-                <button
-                  onClick={() => setActiveTab('admin')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    activeTab === 'admin'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Admin
-                </button>
-              </div>
             </div>
             <div className="flex items-center space-x-4">
               <ConnectionIndicator />
@@ -427,10 +359,7 @@ export default function RealDashboard() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'parking' && <ParqueaderoManagement />}
-        {activeTab === 'carwash' && <CarwashManagement />}
-        {activeTab === 'admin' && <DatabaseAdmin />}
+        {renderOverview()}
       </div>
 
       {/* Modal de Cierre de Caja */}

@@ -54,6 +54,10 @@ interface DashboardData {
   }>;
 }
 
+function getLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export const useDashboardDataReal = (dateFilter?: DateFilter) => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,7 +134,7 @@ export const useDashboardDataReal = (dateFilter?: DateFilter) => {
       
       // Fallback al método anterior
       const vehicles = await dualDatabase.getParkingHistory();
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateStr(new Date());
       return vehicles
         .filter(v => {
           const recordDate = v.fechaEntrada?.startsWith(today) || v.entrada?.startsWith(today);
@@ -161,17 +165,20 @@ export const useDashboardDataReal = (dateFilter?: DateFilter) => {
       //   carwash: carwashTransactions?.length || 0 
       // });
 
-      // Calcular métricas del parqueadero - SOLO tickets realmente activos
-      const activeSpots = parkingTickets?.filter((t: any) => 
-        t.status === 'active' && !t.isPaid && !t.exitTime
-      )?.length || 0;
+      // Calcular métricas del parqueadero - SOLO tickets activos de HOY
+      const todayLocal = getLocalDateStr(new Date());
+      const activeSpots = parkingTickets?.filter((t: any) => {
+        if (t.status !== 'active' || t.isPaid || t.exitTime) return false;
+        const entryDate = t.entryTime ? getLocalDateStr(new Date(t.entryTime)) : null;
+        return entryDate === todayLocal;
+      })?.length || 0;
       const totalVehicles = parkingHistory?.length || 0;
       
       // ✅ CALCULAR INGRESOS DE PARQUEADERO CON FILTRO (si aplica)
       const parkingRevenue = await calculateTodayRevenue();
 
       // Calcular métricas del lavadero
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateStr(new Date());
       
       // ✅ LOG DE DEBUG: Mostrar estado del filtro
       if (dateFilter && dateFilter.filter !== 'all') {
@@ -230,8 +237,8 @@ export const useDashboardDataReal = (dateFilter?: DateFilter) => {
         // Sin filtro: solo del día de hoy
         filteredCarwashTransactions = carwashTransactions?.filter((o: any) => {
           const isCompleted = (o.status === 'completed' || o.estado === 'completado');
-          const transactionDate = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : 
-                                 o.horaCreacion ? new Date(o.horaCreacion).toISOString().split('T')[0] : null;
+          const transactionDate = o.createdAt ? getLocalDateStr(new Date(o.createdAt)) : 
+                                 o.horaCreacion ? getLocalDateStr(new Date(o.horaCreacion)) : null;
           const isToday = transactionDate === today;
           return isCompleted && isToday;
         });
@@ -261,7 +268,7 @@ export const useDashboardDataReal = (dateFilter?: DateFilter) => {
       // Calcular ingresos de suscripciones SOLO DEL DÍA DE HOY
       const subscriptionRevenue = monthlySubscriptions
         ?.filter((sub: any) => {
-          const createdDate = sub.createdAt ? new Date(sub.createdAt).toISOString().split('T')[0] : null;
+          const createdDate = sub.createdAt ? getLocalDateStr(new Date(sub.createdAt)) : null;
           return createdDate === today;
         })
         ?.reduce((total: number, sub: any) => total + (sub.amount || 0), 0) || 0;
@@ -292,8 +299,41 @@ export const useDashboardDataReal = (dateFilter?: DateFilter) => {
         color: ['#8B5CF6', '#F59E0B', '#10B981'][index % 3]
       }));
 
-      // ✅ Actividad reciente SEPARADA con información DETALLADA
-      const parkingActivities = parkingHistory?.slice(-10).reverse().map((v: any) => {
+      // ✅ Actividad reciente FILTRADA por rango de fechas
+      let recentParkingHistory = parkingHistory || [];
+      let recentCarwashHistory = carwashTransactions || [];
+
+      if (dateFilter && dateFilter.filter !== 'all' && dateFilter.from && dateFilter.to) {
+        const fd = dateFilter.from;
+        const td = dateFilter.to;
+        recentParkingHistory = recentParkingHistory.filter((v: any) => {
+          const timeToUse = v.fechaSalida || v.fechaEntrada || v.entrada;
+          if (!timeToUse || timeToUse === '-') return false;
+          const d = new Date(timeToUse);
+          return !isNaN(d.getTime()) && d >= fd && d <= td;
+        });
+        recentCarwashHistory = recentCarwashHistory.filter((o: any) => {
+          const timeToUse = o.createdAt || o.startTime || o.horaCreacion;
+          if (!timeToUse) return false;
+          const d = new Date(timeToUse);
+          return !isNaN(d.getTime()) && d >= fd && d <= td;
+        });
+      } else {
+        // Sin filtro: solo hoy en hora local
+        const todayStr = getLocalDateStr(new Date());
+        recentParkingHistory = recentParkingHistory.filter((v: any) => {
+          const timeToUse = v.fechaSalida || v.fechaEntrada || v.entrada;
+          if (!timeToUse || timeToUse === '-') return false;
+          return getLocalDateStr(new Date(timeToUse)) === todayStr;
+        });
+        recentCarwashHistory = recentCarwashHistory.filter((o: any) => {
+          const timeToUse = o.createdAt || o.startTime || o.horaCreacion;
+          if (!timeToUse) return false;
+          return getLocalDateStr(new Date(timeToUse)) === todayStr;
+        });
+      }
+
+      const parkingActivities = recentParkingHistory.slice(-10).reverse().map((v: any) => {
         const isCompleted = v.estado === 'Completado' || v.estado === 'Salió' || v.estado === 'salio';
         const timeToUse = isCompleted && v.fechaSalida ? v.fechaSalida : v.fechaEntrada;
         const tipoVehiculo = v.tipo || 'Desconocido';
@@ -325,7 +365,7 @@ export const useDashboardDataReal = (dateFilter?: DateFilter) => {
         };
       }) || [];
 
-      const carwashActivities = carwashTransactions?.slice(-10).reverse().map((o: any) => {
+      const carwashActivities = recentCarwashHistory.slice(-10).reverse().map((o: any) => {
         const status = o.status || 'pending';
         const serviceName = o.serviceName || 'Lavado';
         const placa = o.vehiclePlate || o.placa || 'Sin placa';

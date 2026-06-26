@@ -26,7 +26,7 @@ import { getLocalDB } from '@/lib/localDatabase';
 import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 import toast from 'react-hot-toast';
 import ThermalBalanceReceipt from './ThermalBalanceReceipt';
-import DateRangePicker, { DateRange as DateRangeFilter } from '@/components/DateRangePicker';
+import DateRangePicker, { DateRange as DateRangeFilter, parseLocalDate } from '@/components/DateRangePicker';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import '../styles/thermal-receipt.css';
@@ -134,8 +134,8 @@ const BalanceDashboard: React.FC = () => {
     let start = new Date(now);
 
     if (selectedPeriod === 'custom' && startDate && endDate) {
-      const customStart = new Date(startDate);
-      const customEnd = new Date(endDate);
+      const customStart = parseLocalDate(startDate);
+      const customEnd = parseLocalDate(endDate, true);
       const days = Math.max(1, Math.ceil((customEnd.getTime() - customStart.getTime()) / (1000 * 60 * 60 * 24)));
       return { start: customStart, end: customEnd, days };
     }
@@ -191,13 +191,13 @@ const BalanceDashboard: React.FC = () => {
       // Calcular ingresos de parqueadero
       const parkingIncome = parkingTickets.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
 
-      // Calcular ingresos de lavadero (solo lo que gana la empresa)
-      const carwashIncome = carwashTransactions.reduce((sum, t) => sum + t.companyEarning, 0);
-      const workerCommissions = carwashTransactions.reduce((sum, t) => sum + t.workerCommission, 0);
+      // Calcular ingresos de lavadero (basePrice = total cobrado al cliente)
+      const carwashIncome = carwashTransactions.reduce((sum, t) => sum + (t.basePrice || 0), 0);
+      const workerCommissions = carwashTransactions.reduce((sum, t) => sum + (t.workerCommission || 0), 0);
 
-      // Total de ingresos
-      const totalIncome = parkingIncome + carwashIncome + workerCommissions;
-      const netIncome = parkingIncome + carwashIncome; // Lo que le queda a la empresa
+      // Total de ingresos (bruto)
+      const totalIncome = parkingIncome + carwashIncome;
+      const netIncome = totalIncome - workerCommissions; // Ingreso neto después de comisiones
 
       // Servicios totales
       const parkingServices = parkingTickets.length;
@@ -240,9 +240,9 @@ const BalanceDashboard: React.FC = () => {
         return txDate >= prevStart && txDate <= prevEnd && t.status === 'completed';
       });
 
-      const prevTotalIncome = 
-        prevParkingTickets.reduce((sum, t) => sum + (t.totalAmount || 0), 0) +
-        prevCarwashTransactions.reduce((sum, t) => sum + t.companyEarning + t.workerCommission, 0);
+      const prevParkingRevenue = prevParkingTickets.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
+      const prevCarwashRevenue = prevCarwashTransactions.reduce((sum, t) => sum + (t.basePrice || 0), 0);
+      const prevTotalIncome = prevParkingRevenue + prevCarwashRevenue;
 
       const comparisonPercentage = prevTotalIncome > 0 
         ? ((totalIncome - prevTotalIncome) / prevTotalIncome) * 100

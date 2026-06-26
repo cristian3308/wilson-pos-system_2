@@ -6,7 +6,6 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { Server } from 'socket.io';
 import http from 'http';
-import connectDB from './config/database';
 import { errorHandler, notFound } from './middleware/errorMiddleware';
 import logger from './utils/logger';
 
@@ -40,9 +39,6 @@ const io = new Server(server, {
     credentials: true
   }
 });
-
-// Database connection
-connectDB();
 
 // Security middlewares
 app.use(helmet({

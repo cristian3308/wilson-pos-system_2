@@ -175,6 +175,71 @@ export default function DatabaseAdmin() {
         </div>
       </div>
 
+      {/* Exportar / Importar datos */}
+      <div className="border-t pt-4 mb-4">
+        <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <span>💾</span>
+          Respaldos
+        </h4>
+        <p className="text-xs text-gray-500 mb-3">
+          Exportá todos los datos (vehículos, lavados, personal, suscripciones, configuración) a un archivo .json
+          y luego importalo en otro computador. Los datos del navegador actual no se pierden al exportar.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={async () => {
+              try {
+                setIsLoading(true);
+                const data = await dualDatabase.exportData();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `respaldo-pos-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                setMessage({ type: 'success', text: '✅ Datos exportados correctamente' });
+              } catch (err) {
+                setMessage({ type: 'error', text: `❌ Error al exportar: ${err}` });
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+          >
+            ⬇️ Exportar Datos
+          </button>
+
+          <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm cursor-pointer">
+            ⬆️ Importar Datos
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              disabled={isLoading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  setIsLoading(true);
+                  const text = await file.text();
+                  const data = JSON.parse(text);
+                  await dualDatabase.importData(data);
+                  setMessage({ type: 'success', text: '✅ Datos importados correctamente. Recargando...' });
+                  setTimeout(() => window.location.reload(), 1500);
+                } catch (err) {
+                  setMessage({ type: 'error', text: `❌ Error al importar: ${err}` });
+                } finally {
+                  setIsLoading(false);
+                  e.target.value = '';
+                }
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Acciones peligrosas */}
       <div className="border-t pt-4">
         <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">

@@ -32,25 +32,11 @@ export const errorHandler = (
     stack: err.stack
   });
 
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    const message = 'Resource not found';
+  // SQLite errors
+  if (err.message?.includes('SQLITE_CONSTRAINT')) {
+    const message = 'Duplicate entry or constraint violation';
     error = new Error(message) as CustomError;
-    error.statusCode = 404;
-  }
-
-  // Mongoose duplicate key
-  if (err.name === 'MongoServerError' && (err as any).code === 11000) {
-    const message = 'Duplicate field value entered';
-    error = new Error(message) as CustomError;
-    error.statusCode = 400;
-  }
-
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const message = Object.values((err as any).errors).map((val: any) => val.message).join(', ');
-    error = new Error(message) as CustomError;
-    error.statusCode = 400;
+    error.statusCode = 409;
   }
 
   // JWT errors

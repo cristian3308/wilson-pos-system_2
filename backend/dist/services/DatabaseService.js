@@ -19,12 +19,16 @@ class DatabaseService {
             fs_1.default.mkdirSync(dbDir, { recursive: true });
         }
         const dbPath = path_1.default.join(dbDir, 'pos_system.db');
+        const absolutePath = path_1.default.resolve(dbPath);
+        logger_1.default.info(`📁 Ruta de la base de datos: ${absolutePath}`);
+        console.log(`\n📁 BASE DE DATOS DE CIERRES DE CAJA:\n   ${absolutePath}\n`);
         this.db = new sqlite3_1.Database(dbPath, (err) => {
             if (err) {
                 logger_1.default.error('Error opening database:', err);
             }
             else {
                 logger_1.default.info('Connected to SQLite database');
+                console.log('✅ Conectado a la base de datos SQLite\n');
                 this.createTables();
             }
         });

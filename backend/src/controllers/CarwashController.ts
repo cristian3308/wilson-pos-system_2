@@ -60,13 +60,13 @@ export class CarwashController {
         return;
       }
 
-      // Get vehicle type info
+      // Get vehicle type info. Accept either id or nombre to be more flexible
       const vehicleType = await dbService.query(
-        'SELECT id, nombre FROM tipos_vehiculos WHERE nombre = ? AND activo = 1',
-        [tipoVehiculo]
+        'SELECT id, nombre FROM tipos_vehiculos WHERE (id = ? OR nombre = ?) AND activo = 1',
+        [tipoVehiculo, tipoVehiculo]
       );
 
-      if (vehicleType.length === 0) {
+      if (!vehicleType || vehicleType.length === 0) {
         res.status(400).json({
           success: false,
           message: 'Tipo de vehículo no válido'

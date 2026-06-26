@@ -6,31 +6,26 @@ import logger from '../utils/logger';
 
 class DatabaseService {
   private db: Database | null = null;
+  private initialized = false;
 
-  constructor() {
-    this.initializeDatabase();
-  }
+  private ensureInitialized() {
+    if (this.initialized) return;
+    this.initialized = true;
 
-  private initializeDatabase() {
-    // Ensure database directory exists
     const dbDir = path.join(__dirname, '../database');
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
     }
 
     const dbPath = path.join(dbDir, 'pos_system.db');
-    
-    // Log de la ruta absoluta de la base de datos
     const absolutePath = path.resolve(dbPath);
-    logger.info(`📁 Ruta de la base de datos: ${absolutePath}`);
-    console.log(`\n📁 BASE DE DATOS DE CIERRES DE CAJA:\n   ${absolutePath}\n`);
-    
+    logger.info(`Database path: ${absolutePath}`);
+
     this.db = new Database(dbPath, (err: any) => {
       if (err) {
         logger.error('Error opening database:', err);
       } else {
         logger.info('Connected to SQLite database');
-        console.log('✅ Conectado a la base de datos SQLite\n');
         this.createTables();
       }
     });
@@ -152,6 +147,30 @@ class DatabaseService {
       )
     `);
 
+    // Cash closures (cierre de caja)
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS cash_closures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        closure_number TEXT NOT NULL UNIQUE,
+        start_date DATETIME NOT NULL,
+        end_date DATETIME NOT NULL,
+        parking_revenue DECIMAL(10,2) DEFAULT 0,
+        carwash_revenue DECIMAL(10,2) DEFAULT 0,
+        total_revenue DECIMAL(10,2) DEFAULT 0,
+        total_commissions DECIMAL(10,2) DEFAULT 0,
+        net_profit DECIMAL(10,2) DEFAULT 0,
+        parking_data TEXT DEFAULT '[]',
+        carwash_data TEXT DEFAULT '[]',
+        worker_commissions TEXT DEFAULT '[]',
+        parking_details TEXT DEFAULT '[]',
+        carwash_details TEXT DEFAULT '[]',
+        created_by TEXT DEFAULT 'sistema',
+        notes TEXT DEFAULT '',
+        pdf_generated BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     this.insertInitialData();
   }
 
@@ -185,6 +204,7 @@ class DatabaseService {
   }
 
   public query(sql: string, params: any[] = []): Promise<any[]> {
+    this.ensureInitialized();
     return new Promise((resolve, reject) => {
       if (!this.db) {
         reject(new Error('Database not initialized'));
@@ -203,6 +223,7 @@ class DatabaseService {
   }
 
   public run(sql: string, params: any[] = []): Promise<{ id: number; changes: number }> {
+    this.ensureInitialized();
     return new Promise((resolve, reject) => {
       if (!this.db) {
         reject(new Error('Database not initialized'));
@@ -221,6 +242,7 @@ class DatabaseService {
   }
 
   public close() {
+    this.ensureInitialized();
     if (this.db) {
       this.db.close((err: any) => {
         if (err) {

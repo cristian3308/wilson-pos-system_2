@@ -11,6 +11,15 @@ export interface DateRange {
   filter: DateRangeFilter;
 }
 
+/** Convierte "YYYY-MM-DD" a fecha local (evita el bug UTC) */
+export function parseLocalDate(dateStr: string, endOfDay = false): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (endOfDay) {
+    return new Date(y, m - 1, d, 23, 59, 59, 999);
+  }
+  return new Date(y, m - 1, d);
+}
+
 interface DateRangePickerProps {
   onRangeChange: (range: DateRange) => void;
   showQuickFilters?: boolean;
@@ -69,8 +78,8 @@ export default function DateRangePicker({
       case 'custom':
         if (customFrom && customTo) {
           return {
-            from: new Date(customFrom),
-            to: new Date(customTo + 'T23:59:59'),
+            from: parseLocalDate(customFrom),
+            to: parseLocalDate(customTo, true),
             filter: 'custom'
           };
         }

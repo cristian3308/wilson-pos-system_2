@@ -6,7 +6,8 @@ import { getDualDB, BusinessConfig } from '../lib/dualDatabase';
 import { getLocalDB, VehicleTypeConfig } from '@/lib/localDatabase';
 const dualDB = getDualDB();
 import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
-import DateRangeFilter, { DateRange } from './DateRangeFilter';
+import DateRangePicker, { DateRange } from './DateRangePicker';
+import DatabaseAdmin from './DatabaseAdmin';
 import { useHistoryData } from '../hooks/useHistoryData';
 
 interface BusinessConfigurationPanelProps {
@@ -991,6 +992,11 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
           </div>
         </div>
 
+        {/* Administrador de Base de Datos */}
+        <div className="mt-8">
+          <DatabaseAdmin />
+        </div>
+
         {/* Historial Detallado de Entradas y Salidas con Filtros */}
         <div className="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-6">
@@ -1003,8 +1009,8 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
           
           <div className="p-6">
             {/* Componente de filtros */}
-            <DateRangeFilter 
-              onFilterChange={loadData}
+            <DateRangePicker 
+              onRangeChange={(range) => loadData(range as any)}
               className="mb-6"
             />
 
@@ -1109,7 +1115,7 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                         const endOfDay = new Date(today);
                         endOfDay.setHours(23, 59, 59, 999);
                         
-                        await loadData({ startDate: today, endDate: endOfDay, period: 'today' });
+                        await loadData({ from: today, to: endOfDay, filter: 'today' });
                         setMessage(`✅ ${updatedCount} registros actualizados con montos correctos`);
                       } catch (error) {
                         console.error('Error recalculando montos:', error);

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Filter, Download, BarChart2, LineChart as LineChartIcon, TrendingUp } from 'lucide-react';
 import { localDB, ParkingTicket, CarwashTransaction, getLocalDB } from '@/lib/localDatabase';
-import DateRangePicker, { DateRange as DateRangeFilter } from '@/components/DateRangePicker';
+import DateRangePicker, { DateRange as DateRangeFilter, parseLocalDate } from '@/components/DateRangePicker';
 import SummaryCards from './SummaryCards';
 import RevenueChart from './RevenueChart';
 import ParkingReportTable from './ParkingReportTable';
@@ -500,7 +500,7 @@ const ReportsDashboard: React.FC = () => {
                     value={customDateRange.start.toISOString().split('T')[0]}
                     onChange={(e) => setCustomDateRange({
                       ...customDateRange,
-                      start: new Date(e.target.value)
+                      start: parseLocalDate(e.target.value)
                     })}
                     className="bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"
                   />
@@ -513,7 +513,7 @@ const ReportsDashboard: React.FC = () => {
                     value={customDateRange.end.toISOString().split('T')[0]}
                     onChange={(e) => setCustomDateRange({
                       ...customDateRange,
-                      end: new Date(e.target.value)
+                      end: parseLocalDate(e.target.value, true)
                     })}
                     className="bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"
                   />

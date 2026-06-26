@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getDualDB } from '../lib/dualDatabase';
-import { DateRange } from '../components/DateRangeFilter';
+import { DateRange } from '../components/DateRangePicker';
 
 export interface ParkingRecord {
   id: string;
@@ -63,7 +63,7 @@ export const useHistoryData = () => {
       // Filtrar por rango de fechas
       const filteredTickets = allTickets.filter((ticket: any) => {
         const entryTime = ticket.entryTime;
-        return entryTime >= dateRange.startDate && entryTime <= dateRange.endDate;
+        return entryTime >= (dateRange.from || new Date(0)) && entryTime <= (dateRange.to || new Date());
       });
 
       // Convertir a formato ParkingRecord
@@ -96,7 +96,7 @@ export const useHistoryData = () => {
       // Filtrar por rango de fechas
       const filteredTransactions = allTransactions.filter(transaction => {
         const startTime = transaction.startTime;
-        return startTime >= dateRange.startDate && startTime <= dateRange.endDate;
+        return startTime >= (dateRange.from || new Date(0)) && startTime <= (dateRange.to || new Date());
       });
 
       // Convertir a formato CarwashRecord

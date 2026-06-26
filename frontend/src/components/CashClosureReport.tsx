@@ -8,6 +8,7 @@ import localDB from '@/lib/localDatabase';
 import { appEvents, APP_EVENTS } from '@/lib/eventEmitter';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+import { cashClosureApi } from '@/lib/api';
 
 interface CashClosureData {
   businessName: string;
@@ -172,13 +173,10 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
   // 📋 Cargar lista de cierres guardados
   const loadAvailableClosures = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/v1/cash-closures');
-      if (response.ok) {
-        const result = await response.json();
-        const closures = result.data || [];
-        setAvailableClosures(closures);
-        console.log('📋 Cierres disponibles:', closures.length);
-      }
+      const result = await cashClosureApi.getAll();
+      const closures = (result.data as any[]) || [];
+      setAvailableClosures(closures as SavedClosure[]);
+      console.log('📋 Cierres disponibles:', closures.length);
     } catch (error) {
       console.error('Error loading closures:', error);
     }
@@ -187,7 +185,6 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
   // 🔍 Cargar un cierre específico por ID
   const loadClosureById = async (closureId: string) => {
     if (closureId === 'current') {
-      // Cargar datos actuales (en curso)
       setSelectedClosureId('current');
       setSelectedClosure(null);
       loadTodayData();
@@ -196,18 +193,15 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
 
     try {
       setIsLoading(true);
-      const response = await fetch(`http://localhost:5000/api/v1/cash-closures/${closureId}`);
-      if (response.ok) {
-        const result = await response.json();
-        const closure = result.data;
-        setSelectedClosure(closure);
-        setSelectedClosureId(closureId);
-        setStartDateTime(new Date(closure.start_date));
-        setEndDateTime(new Date(closure.end_date));
-        
-        toast.success(`Cierre #${closure.closure_number} cargado`);
-        console.log('📊 Cierre cargado:', closure);
-      }
+      const result = await cashClosureApi.getById(closureId);
+      const closure = result.data as any;
+      setSelectedClosure(closure);
+      setSelectedClosureId(closureId);
+      setStartDateTime(new Date(closure.start_date));
+      setEndDateTime(new Date(closure.end_date));
+      
+      toast.success(`Cierre #${closure.closure_number} cargado`);
+      console.log('📊 Cierre cargado:', closure);
     } catch (error) {
       console.error('Error loading closure:', error);
       toast.error('Error al cargar el cierre');
@@ -845,19 +839,16 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
       // ✅ CONTINUIDAD AUTOMÁTICA: Obtener el último cierre y empezar 1 minuto después
       let startDate = new Date();
       try {
-        const lastClosureResponse = await fetch('http://localhost:5000/api/v1/cash-closures/last');
-        if (lastClosureResponse.ok) {
-          const lastClosureData = await lastClosureResponse.json();
-          if (lastClosureData.data) {
-            // ✅ El nuevo cierre empieza EXACTAMENTE 1 minuto después del anterior
-            const lastEndDate = new Date(lastClosureData.data.end_date);
-            startDate = new Date(lastEndDate.getTime() + 60000); // +1 minuto (60000ms)
-            
-            console.log('✅ CONTINUIDAD AUTOMÁTICA:');
-            console.log(`   📅 Último cierre terminó: ${lastEndDate.toLocaleString('es-CO')}`);
-            console.log(`   📅 Nuevo cierre empieza:  ${startDate.toLocaleString('es-CO')}`);
-            console.log(`   ⏱️  Diferencia: 1 minuto exacto`);
-          }
+        const lastClosureResult = await cashClosureApi.getLast();
+        const lastClosure = (lastClosureResult.data as any);
+        if (lastClosure) {
+          const lastEndDate = new Date(lastClosure.end_date);
+          startDate = new Date(lastEndDate.getTime() + 60000);
+          
+          console.log('✅ CONTINUIDAD AUTOMÁTICA:');
+          console.log(`   📅 Último cierre terminó: ${lastEndDate.toLocaleString('es-CO')}`);
+          console.log(`   📅 Nuevo cierre empieza:  ${startDate.toLocaleString('es-CO')}`);
+          console.log(`   ⏱️  Diferencia: 1 minuto exacto`);
         }
       } catch (err) {
         console.warn('⚠️  No se pudo obtener el último cierre, usando fecha actual como inicio');
@@ -894,13 +885,7 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
       console.log('   📄 Resumen detalles parqueadero:', parkingDetails.slice(0, 2));
       console.log('   📄 Resumen detalles lavadero:', carwashDetails.slice(0, 2));
 
-      const response = await fetch('http://localhost:5000/api/v1/cash-closures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(closureData)
-      });
-
-      if (!response.ok) throw new Error('Error al guardar el cierre');
+      await cashClosureApi.create(closureData);
 
       // ✅ GUARDAR FECHA DEL ÚLTIMO CIERRE EN LOCALSTORAGE
       localDB.saveLastClosure(closureDate);
@@ -914,7 +899,12 @@ const CashClosureReport: React.FC<CashClosureReportProps> = ({ data: propData, o
 
       // Limpiar datos si está marcado
       if (clearDataAfterClosure) {
-        toast.success('Datos limpiados para el próximo período');
+        try {
+          await cashClosureApi.clearOperationalData();
+          toast.success('Datos operativos limpiados para el próximo período');
+        } catch (err) {
+          console.warn('⚠️  No se pudieron limpiar datos operativos en backend:', err);
+        }
       }
 
       return true;
