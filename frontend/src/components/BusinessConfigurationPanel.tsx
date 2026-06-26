@@ -10,6 +10,18 @@ import DateRangePicker, { DateRange } from './DateRangePicker';
 import DatabaseAdmin from './DatabaseAdmin';
 import { useHistoryData } from '../hooks/useHistoryData';
 
+const iconMap: Record<string, string> = {
+  Car: '🚗',
+  Truck: '🚛',
+  Bike: '🛵',
+};
+
+const oldTypeNames: Record<string, string> = {
+  car: 'Carro',
+  motorcycle: 'Moto',
+  truck: 'Camión',
+};
+
 interface BusinessConfigurationPanelProps {
   onConfigurationChange?: (config: any) => void;
 }
@@ -27,7 +39,7 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
   // 🧽 Estados para servicios de lavadero
   const [carwashServices, setCarwashServices] = useState<any[]>([]);
   const [newService, setNewService] = useState({
-    vehicleType: 'car',
+    vehicleType: '',
     serviceName: '',
     basePrice: 0,
     estimatedTime: 30
@@ -161,7 +173,7 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
       
       // Resetear formulario
       setNewService({
-        vehicleType: 'car',
+        vehicleType: '',
         serviceName: '',
         basePrice: 0,
         estimatedTime: 30
@@ -630,8 +642,8 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                         <div key={vehicleType.id} className={`bg-gradient-to-br ${colorScheme.gradient} p-4 rounded-xl border-2 ${colorScheme.border} transition-all relative group`}>
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center space-x-2">
-                              <div className={`p-2 ${colorScheme.iconBg} rounded-lg`}>
-                                <Truck className={`h-4 w-4 text-white`} />
+                              <div className={`p-2 ${colorScheme.iconBg} rounded-lg text-white text-sm`}>
+                                {iconMap[vehicleType.iconName] || '🚗'}
                               </div>
                               <span className={`text-sm font-bold ${colorScheme.text}`}>
                                 {vehicleType.name}
@@ -710,67 +722,82 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                     <p className="text-sm text-gray-500 mt-1">Haz clic en "Agregar Servicio" para crear uno</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {carwashServices.map((service) => {
-                      const vehicleIcon = service.vehicleType === 'motorcycle' ? '🏍️' : 
-                                        service.vehicleType === 'truck' ? '🚛' : '🚗';
-                      
-                      return (
-                        <div key={service.id} className="bg-white p-4 rounded-lg border-2 border-cyan-200 hover:border-cyan-400 transition-all group">
-                          <div className="flex justify-between items-start gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-2xl">{vehicleIcon}</span>
-                                <input
-                                  type="text"
-                                  value={service.serviceName}
-                                  onChange={(e) => updateCarwashService(service.id, 'serviceName', e.target.value)}
-                                  className="font-semibold text-gray-800 border-b-2 border-transparent hover:border-cyan-300 focus:border-cyan-500 focus:outline-none px-1 py-0.5 transition-colors"
-                                />
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  <input
-                                    type="number"
-                                    value={service.estimatedTime}
-                                    onChange={(e) => updateCarwashService(service.id, 'estimatedTime', parseInt(e.target.value))}
-                                    className="w-12 border-b border-transparent hover:border-gray-300 focus:border-cyan-500 focus:outline-none text-center"
-                                  /> min
-                                </span>
-                                <span className="px-2 py-0.5 bg-cyan-100 text-cyan-700 rounded text-xs font-medium">
-                                  {service.vehicleType === 'motorcycle' ? 'Moto' : 
-                                   service.vehicleType === 'truck' ? 'Camión' : 'Carro'}
-                                </span>
-                              </div>
+                  <div className="space-y-6">
+                    {(() => {
+                      const grouped: Record<string, any[]> = {};
+                      carwashServices.forEach(service => {
+                        const vt = vehicleTypes.find(v => v.id === service.vehicleType || v.name === service.vehicleType);
+                        const key = vt?.id || service.vehicleType;
+                        if (!grouped[key]) grouped[key] = [];
+                        grouped[key].push(service);
+                      });
+                      return Object.entries(grouped).map(([typeKey, services]) => {
+                        const vt = vehicleTypes.find(v => v.id === typeKey || v.name === typeKey);
+                        const iconEmoji = iconMap[vt?.iconName || ''] || '🚗';
+                        const vehicleName = vt?.name || oldTypeNames[typeKey] || typeKey;
+                        return (
+                          <div key={typeKey}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-xl">{iconEmoji}</span>
+                              <h5 className="font-semibold text-cyan-800">{vehicleName}</h5>
+                              <span className="text-xs text-gray-500">({services.length})</span>
                             </div>
-                            
-                            <div className="flex items-center gap-3">
-                              <div className="text-right">
-                                <div className="flex items-center gap-1">
-                                  <span className="text-gray-500 text-sm">$</span>
-                                  <input
-                                    type="number"
-                                    value={service.basePrice}
-                                    onChange={(e) => updateCarwashService(service.id, 'basePrice', parseInt(e.target.value))}
-                                    className="w-24 text-right font-bold text-green-600 text-lg border-b-2 border-transparent hover:border-green-300 focus:border-green-500 focus:outline-none px-1"
-                                  />
+                            <div className="space-y-2">
+                              {services.map((service: any) => (
+                                <div key={service.id} className="bg-white p-4 rounded-lg border-2 border-cyan-200 hover:border-cyan-400 transition-all group">
+                                  <div className="flex justify-between items-start gap-4">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <input
+                                          type="text"
+                                          value={service.serviceName}
+                                          onChange={(e) => updateCarwashService(service.id, 'serviceName', e.target.value)}
+                                          className="font-semibold text-gray-800 border-b-2 border-transparent hover:border-cyan-300 focus:border-cyan-500 focus:outline-none px-1 py-0.5 transition-colors"
+                                        />
+                                      </div>
+                                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="w-3.5 h-3.5" />
+                                          <input
+                                            type="number"
+                                            value={service.estimatedTime}
+                                            onChange={(e) => updateCarwashService(service.id, 'estimatedTime', parseInt(e.target.value))}
+                                            className="w-12 border-b border-transparent hover:border-gray-300 focus:border-cyan-500 focus:outline-none text-center"
+                                          /> min
+                                        </span>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-gray-500 text-sm">$</span>
+                                          <input
+                                            type="number"
+                                            value={service.basePrice}
+                                            onChange={(e) => updateCarwashService(service.id, 'basePrice', parseInt(e.target.value))}
+                                            className="w-24 text-right font-bold text-green-600 text-lg border-b-2 border-transparent hover:border-green-300 focus:border-green-500 focus:outline-none px-1"
+                                          />
+                                        </div>
+                                        <p className="text-xs text-gray-500">Precio base</p>
+                                      </div>
+                                      
+                                      <button
+                                        onClick={() => deleteCarwashService(service.id)}
+                                        className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                        title="Eliminar servicio"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
-                                <p className="text-xs text-gray-500">Precio base</p>
-                              </div>
-                              
-                              <button
-                                onClick={() => deleteCarwashService(service.id)}
-                                className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                title="Eliminar servicio"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              ))}
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 )}
                 
@@ -1420,13 +1447,18 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                   🚗 Tipo de Vehículo
                 </label>
                 <select
-                  value={newService.vehicleType}
+                  value={newService.vehicleType || vehicleTypes[0]?.id || ''}
                   onChange={(e) => setNewService({...newService, vehicleType: e.target.value})}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 >
-                  <option value="car">🚗 Carro</option>
-                  <option value="motorcycle">🏍️ Moto</option>
-                  <option value="truck">🚛 Camión</option>
+                  {vehicleTypes.map((vt) => {
+                    const iconEmoji = iconMap[vt.iconName] || '🚗';
+                    return (
+                      <option key={vt.id} value={vt.id}>
+                        {iconEmoji} {vt.name} (${vt.tarifa?.toLocaleString()}/hora)
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -1534,9 +1566,14 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                         onChange={(e) => setEditingRecord({...editingRecord, vehicleType: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="car">🚗 Carro</option>
-                        <option value="motorcycle">🏍️ Moto</option>
-                        <option value="truck">🚛 Camión</option>
+                        {vehicleTypes.map((vt) => {
+                          const iconEmoji = iconMap[vt.iconName] || '🚗';
+                          return (
+                            <option key={vt.id} value={vt.id}>
+                              {iconEmoji} {vt.name} (${vt.tarifa?.toLocaleString()}/hora)
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                     
@@ -1659,8 +1696,11 @@ const BusinessConfigurationPanel: React.FC<BusinessConfigurationPanelProps> = ({
                       <div>
                         <span className="font-medium text-gray-600">Vehículo:</span>
                         <span className="ml-2">
-                          {editingRecord.vehicleType === 'car' ? '🚗 Carro' :
-                           editingRecord.vehicleType === 'motorcycle' ? '🏍️ Moto' : '🚛 Camión'}
+                          {(() => {
+                            const vt = vehicleTypes.find(v => v.id === editingRecord.vehicleType || v.name === editingRecord.vehicleType);
+                            const iconEmoji = iconMap[vt?.iconName || ''] || '🚗';
+                            return vt ? `${iconEmoji} ${vt.name}` : (oldTypeNames[editingRecord.vehicleType] || editingRecord.vehicleType);
+                          })()}
                         </span>
                       </div>
                       <div>
